@@ -1,0 +1,25 @@
+{
+  "name": "farcade-game",
+  "version": "1.0.0",
+  "description": "A farcade game built using best practices.",
+  "main": "src/core/game.ts",
+  "scripts": {
+    "start": "tsc && node dist/core/game.js",
+    "build": "tsc",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "keywords": [
+    "farcade",
+    "game",
+    "typescript"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "some-game-library": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^4.5.0",
+    "ts-node": "^10.0.0"
+  }
+}
