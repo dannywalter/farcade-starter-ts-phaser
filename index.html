@@ -57,9 +57,12 @@
 
       // — Projectile (noggle) state —
       let noggles = [];
-      const NOGGLE_SPEED = 0.3; // slower throw
-      const MAX_THROW_DISTANCE = 300; // beyond this distance taps all throw at max speed
-      const MAX_THROW_SPEED = 25; // tweak this to your ideal “full‑power” speed
+      const NOGGLE_SPEED = 0.2; // base throw multiplier
+      const MAX_THROW_DISTANCE = 200; // cap influence distance
+      const MAX_THROW_SPEED = 15; // cap maximum speed
+
+      // — Noggle image & spin —
+      let noggleImg;
 
       // — Sprite sheet & player setup —
       const SPRITE_URL =
@@ -86,7 +89,6 @@
         jump: { frames: 8, speed: 7 },
         fall: { frames: 8, speed: 7 },
       };
-
       const ANIMATION_ROW_MAP = {
         idle: { right: { row: 4, startFrame: 0 }, left: { row: 6, startFrame: 0 } },
         walk: { right: { row: 0, startFrame: 0 }, left: { row: 2, startFrame: 0 } },
@@ -102,6 +104,9 @@
             console.error("Sprite load failed");
             imageLoadingError = true;
           },
+        );
+        noggleImg = loadImage(
+          "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/glasses-square-red-ge40H7EEizX6BtKLM99M270Y9htR9s.png",
         );
       }
 
@@ -149,15 +154,8 @@
           { x: 1450, y: height - 350, w: 150, h: 20, color: color(120, 60, 70) },
           { x: 1700, y: height - 150, w: 300, h: 150, color: color(120, 60, 60) },
         ];
-
         goal = { x: 2050, y: height - 100, w: 50, h: 50, color: color(50, 100, 100) };
-        platforms.push({
-          x: goal.x - 25,
-          y: goal.y + goal.h - 20,
-          w: 100,
-          h: 20,
-          color: color(120, 60, 60),
-        });
+        platforms.push({ x: goal.x - 25, y: goal.y + goal.h - 20, w: 100, h: 20, color: color(120, 60, 60) });
 
         levelWidth = Math.max(...platforms.map((p) => p.x + p.w), goal.x + goal.w) + 200;
         gameState = "start";
@@ -171,7 +169,6 @@
           text("Error loading spritesheet.\nCheck console.", width / 2, height / 2);
           return;
         }
-
         if (gameState === "start") {
           displayStartScreen();
         } else if (gameState === "playing") {
@@ -197,11 +194,11 @@
       }
 
       function updateCamera() {
-        let targetX = player.x - width / 3;
-        cameraX = lerp(cameraX, targetX, 0.1);
+        let tx = player.x - width / 3;
+        cameraX = lerp(cameraX, tx, 0.1);
         cameraX = constrain(cameraX, 0, max(levelWidth - width, 0));
-        let desiredY = player.y - height / 2;
-        cameraY = min(desiredY, initialCameraY);
+        let dy = player.y - height / 2;
+        cameraY = min(dy, initialCameraY);
       }
 
       function drawGameScene() {
@@ -217,23 +214,35 @@
       function updateNoggles() {
         for (let i = noggles.length - 1; i >= 0; i--) {
           let n = noggles[i];
+          // physics
           n.vy += GRAVITY;
           n.x += n.vx;
           n.y += n.vy;
-          platforms.forEach((p) => {
+          // spin
+          n.angle += n.angularVelocity;
+          // collide
+          for (let p of platforms) {
             if (n.x > p.x && n.x < p.x + p.w && n.y > p.y && n.y < p.y + p.h) {
               p.color = color(random(360), 80, 80);
               noggles.splice(i, 1);
+              break;
             }
-          });
+          }
+          // remove if far below
           if (n.y > cameraY + height * 2) noggles.splice(i, 1);
         }
       }
 
       function drawNoggles() {
-        fill(50, 100, 100);
-        noStroke();
-        noggles.forEach((n) => circle(n.x, n.y, n.r * 2));
+        imageMode(CENTER);
+        for (let n of noggles) {
+          push();
+          translate(n.x, n.y);
+          rotate(n.angle);
+          let size = n.r * 8; // adjust multiplier as desired
+          image(noggleImg, 0, 0, size, size);
+          pop();
+        }
       }
 
       function handlePlayerInput() {
@@ -272,6 +281,7 @@
       }
 
       function updatePlayer() {
+        // horizontal
         player.x += player.velocityX;
         platforms.forEach((p) => {
           if (isColliding(player, p)) {
@@ -280,6 +290,7 @@
             player.velocityX = 0;
           }
         });
+        // vertical
         player.velocityY += GRAVITY;
         player.y += player.velocityY;
         player.isOnGround = false;
@@ -453,33 +464,31 @@
 
       function mousePressed() {
         if (gameState === "playing") {
-          // only throw if click isn’t on controls
           if (
             dist(mouseX, mouseY, joystick.x, joystick.y) > joystick.activeRadius &&
             dist(mouseX, mouseY, jumpBtn.x, jumpBtn.y) > jumpBtn.r
           ) {
-            // world‐space start/end
             const wsx = player.x;
             const wsy = player.y - (FRAME_HEIGHT * PLAYER_VISUAL_SCALE) / 2;
             const wex = cameraX + mouseX;
             const wey = cameraY + mouseY;
-
-            // raw vector
-            const dxRaw = wex - wsx;
-            const dyRaw = wey - wsy;
+            const dxRaw = wex - wsx,
+              dyRaw = wey - wsy;
             const distRaw = sqrt(dxRaw * dxRaw + dyRaw * dyRaw);
-
-            // clamp the influence distance
-            const effective = min(distRaw, MAX_THROW_DISTANCE);
-            // linearly map [0..MAX_THROW_DISTANCE] → [0..MAX_THROW_SPEED]
-            const speed = (effective / MAX_THROW_DISTANCE) * MAX_THROW_SPEED;
+            const eff = min(distRaw, MAX_THROW_DISTANCE);
+            const speed = (eff / MAX_THROW_DISTANCE) * MAX_THROW_SPEED;
             const angle = atan2(dyRaw, dxRaw);
-
-            // final vel
             const dx = cos(angle) * speed;
             const dy = sin(angle) * speed;
-
-            noggles.push({ x: wsx, y: wsy, vx: dx, vy: dy, r: 10 });
+            noggles.push({
+              x: wsx,
+              y: wsy,
+              vx: dx,
+              vy: dy,
+              r: 10,
+              angle: 0,
+              angularVelocity: random(-0.2, 0.2),
+            });
           }
         } else {
           initializeGame();
@@ -489,27 +498,32 @@
 
       function touchStarted() {
         if (gameState === "playing") {
-          // use the newest touch so you can keep holding joystick
           const t = touches[touches.length - 1];
-
           if (
             dist(t.x, t.y, joystick.x, joystick.y) > joystick.activeRadius &&
             dist(t.x, t.y, jumpBtn.x, jumpBtn.y) > jumpBtn.r
           ) {
             const wsx = player.x;
             const wsy = player.y - (FRAME_HEIGHT * PLAYER_VISUAL_SCALE) / 2;
-            const wex = cameraX + t.x;
-            const wey = cameraY + t.y;
-            const dxRaw = wex - wsx;
-            const dyRaw = wey - wsy;
+            const wex = cameraX + t.x,
+              wey = cameraY + t.y;
+            const dxRaw = wex - wsx,
+              dyRaw = wey - wsy;
             const distRaw = sqrt(dxRaw * dxRaw + dyRaw * dyRaw);
-            const effective = min(distRaw, MAX_THROW_DISTANCE);
-            const speed = (effective / MAX_THROW_DISTANCE) * MAX_THROW_SPEED;
+            const eff = min(distRaw, MAX_THROW_DISTANCE);
+            const speed = (eff / MAX_THROW_DISTANCE) * MAX_THROW_SPEED;
             const angle = atan2(dyRaw, dxRaw);
             const dx = cos(angle) * speed;
             const dy = sin(angle) * speed;
-
-            noggles.push({ x: wsx, y: wsy, vx: dx, vy: dy, r: 10 });
+            noggles.push({
+              x: wsx,
+              y: wsy,
+              vx: dx,
+              vy: dy,
+              r: 10,
+              angle: 0,
+              angularVelocity: random(-0.2, 0.2),
+            });
           }
           return false;
         } else {
