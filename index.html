@@ -17,7 +17,7 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
-        background: #333;
+        background: #d5d7e1;
       }
       body {
         display: flex;
@@ -46,6 +46,39 @@
   <body>
     <div class="game-container" id="game-container"></div>
     <script>
+      // — Palette definitions —
+      const brightPalettes = {
+        "Deep Fried": ["#B9185C", "#D22209", "#C16710", "#D08B11", "#FFE939"],
+        "User Gnome": ["#FF1A0B", "#EC5B43", "#FFA21E", "#00A556", "#068940"],
+        "Noun 1": ["#D26451", "#F78A18", "#FFC110", "#FF638D", "#CC0595"],
+        "Berries & Bubble Gum": ["#834398", "#FF638D", "#FB4694", "#E9265C", "#FF1AD2"],
+        "Bold & Bright": ["#F20422", "#FF1AD2", "#FFC110", "#1929F4", "#00FCFF"],
+        "Burger Joint": ["#D9391F", "#FF7216", "#F20422", "#FFE939", "#FFB913"],
+        Bricks: ["#FFC110", "#EAB118", "#00A556", "#F20422", "#1929F4"],
+        "Bold and Vibrant": ["#FF500C", "#9F21A0", "#34AC80", "#FF638D", "#F3322C"],
+        Energetic: ["#254EFB", "#F938D8", "#FFEF16", "#FF3A0E", "#D32A09"],
+        Playful: ["#FF1AD2", "#FF3A0E", "#FFAE1A", "#2A86FD", "#34AC80"],
+        Peyote: ["#27A463", "#018146", "#FDF008", "#FDCEF2", "#F681E6"],
+      };
+      const dullPalettes = {
+        Lumber: ["#6B3F39", "#5A423F", "#7D635E", "#6B3F39", "#D0AEA9"],
+        "Cozy Cotton": ["#F9E8DD", "#F9F4E6", "#D7D3CD", "#CFC2AB", "#CBC1BC"],
+        "Muted Shades": ["#757576", "#58565C", "#5D6061", "#1F1D29", "#343235"],
+        Natural: ["#C5B9A1", "#8F785E", "#9D8E6E", "#CFC2AB", "#9F4B27"],
+        "New House": ["#5A423F", "#6E3206", "#7E5243", "#85634F", "#6B3F39"],
+        "Subtle Shift": ["#CBC1BC", "#E1D7D5", "#D7D3CD", "#CFC2AB", "#C5B9A1"],
+        "Classic UX": ["#343235", "#D7D3CD", "#E5E5DE", "#D8DADF", "#B8CED2"],
+        "Light Blend": ["#D5D7E1", "#FDF8FF", "#E5E5DE", "#E1D7D5", "#CFC2AB"],
+      };
+      let activeBrightPalette;
+      let activeDullPalette;
+      function choosePalettes() {
+        const dullKeys = Object.keys(dullPalettes);
+        const brightKeys = Object.keys(brightPalettes);
+        activeDullPalette = dullPalettes[dullKeys[Math.floor(Math.random() * dullKeys.length)]];
+        activeBrightPalette = brightPalettes[brightKeys[Math.floor(Math.random() * brightKeys.length)]];
+      }
+
       // — UI control state —
       let joystick = { x: 0, y: 0, outer: 60, inner: 30, activeRadius: 150 };
       let jumpBtn = { x: 0, y: 0, r: 40 };
@@ -95,12 +128,10 @@
       const JUMP_FORCE = -15;
       const GRAVITY = 0.5;
       const PLAYER_VISUAL_SCALE = 3.0;
-
-      // coyote time & jump buffer
       const COYOTE_FRAMES = 6;
       const JUMP_BUFFER_FRAMES = 6;
-      let coyoteTimer = 0;
-      let jumpBufferTimer = 0;
+      let coyoteTimer = 0,
+        jumpBufferTimer = 0;
 
       const ANIMATION_DEFINITIONS = {
         idle: { frames: 16, speed: 8 },
@@ -161,6 +192,9 @@
       }
 
       function initializeGame() {
+        // choose random palettes each play
+        choosePalettes();
+
         noggles.length = 0;
         coyoteTimer = 0;
         jumpBufferTimer = 0;
@@ -178,37 +212,124 @@
           animation: { currentSet: "idle", facingDirection: 1, frameIndex: 0, tick: 0 },
         };
 
-        // — Extended Level Layout for Noggle Tag —
+        // — Platforms using dull palette —
         platforms = [
-          { x: 0, y: height - 50, w: 400, h: 50, color: color(120, 60, 60) },
-          { x: 300, y: height - 250, w: 150, h: 20, color: color(120, 60, 70) },
-          { x: 650, y: height - 350, w: 120, h: 20, color: color(120, 60, 70) },
-          { x: 1000, y: height - 250, w: 140, h: 20, color: color(120, 60, 65) },
-          { x: 1350, y: height - 400, w: 100, h: 20, color: color(120, 60, 70) },
-          { x: 1700, y: height - 300, w: 180, h: 20, color: color(120, 60, 60) },
-          { x: 2050, y: height - 280, w: 110, h: 20, color: color(200, 50, 80) },
-          { x: 2300, y: height - 240, w: 90, h: 20, color: color(200, 50, 80) },
-          { x: 2550, y: height - 300, w: 130, h: 20, color: color(200, 50, 80) },
-          { x: 2800, y: height - 180, w: 200, h: 20, color: color(120, 60, 65) },
-          { x: 3100, y: height - 230, w: 100, h: 20, color: color(120, 60, 70) },
-          { x: 3275, y: height - 290, w: 100, h: 20, color: color(120, 60, 70) },
-          { x: 3450, y: height - 350, w: 100, h: 20, color: color(120, 60, 70) },
-          { x: 3700, y: height - 150, w: 600, h: 20, color: color(120, 60, 60) },
+          {
+            x: 0,
+            y: height - 50,
+            w: 400,
+            h: 50,
+            color: activeDullPalette[Math.floor(Math.random() * activeDullPalette.length)],
+          },
+          {
+            x: 300,
+            y: height - 250,
+            w: 150,
+            h: 20,
+            color: activeDullPalette[Math.floor(Math.random() * activeDullPalette.length)],
+          },
+          {
+            x: 650,
+            y: height - 350,
+            w: 120,
+            h: 20,
+            color: activeDullPalette[Math.floor(Math.random() * activeDullPalette.length)],
+          },
+          {
+            x: 1000,
+            y: height - 250,
+            w: 140,
+            h: 20,
+            color: activeDullPalette[Math.floor(Math.random() * activeDullPalette.length)],
+          },
+          {
+            x: 1350,
+            y: height - 400,
+            w: 100,
+            h: 20,
+            color: activeDullPalette[Math.floor(Math.random() * activeDullPalette.length)],
+          },
+          {
+            x: 1700,
+            y: height - 300,
+            w: 180,
+            h: 20,
+            color: activeDullPalette[Math.floor(Math.random() * activeDullPalette.length)],
+          },
+          {
+            x: 2050,
+            y: height - 280,
+            w: 110,
+            h: 20,
+            color: activeDullPalette[Math.floor(Math.random() * activeDullPalette.length)],
+          },
+          {
+            x: 2300,
+            y: height - 240,
+            w: 90,
+            h: 20,
+            color: activeDullPalette[Math.floor(Math.random() * activeDullPalette.length)],
+          },
+          {
+            x: 2550,
+            y: height - 300,
+            w: 130,
+            h: 20,
+            color: activeDullPalette[Math.floor(Math.random() * activeDullPalette.length)],
+          },
+          {
+            x: 2800,
+            y: height - 180,
+            w: 200,
+            h: 20,
+            color: activeDullPalette[Math.floor(Math.random() * activeDullPalette.length)],
+          },
+          {
+            x: 3100,
+            y: height - 230,
+            w: 100,
+            h: 20,
+            color: activeDullPalette[Math.floor(Math.random() * activeDullPalette.length)],
+          },
+          {
+            x: 3275,
+            y: height - 290,
+            w: 100,
+            h: 20,
+            color: activeDullPalette[Math.floor(Math.random() * activeDullPalette.length)],
+          },
+          {
+            x: 3450,
+            y: height - 350,
+            w: 100,
+            h: 20,
+            color: activeDullPalette[Math.floor(Math.random() * activeDullPalette.length)],
+          },
+          {
+            x: 3700,
+            y: height - 150,
+            w: 600,
+            h: 20,
+            color: activeDullPalette[Math.floor(Math.random() * activeDullPalette.length)],
+          },
         ];
 
+        // — Goal with bright palette —
         goal = {
           x: 4400,
           y: height - 200,
           w: 50,
           h: 50,
-          color: color(50, 100, 100),
+          color: activeBrightPalette[Math.floor(Math.random() * activeBrightPalette.length)],
         };
+
+        // small landing under goal
         platforms.push({
           x: goal.x - 25,
           y: goal.y + goal.h - 20,
           w: 100,
           h: 20,
-          color: color(120, 60, 60),
+          color: activeDullPalette[Math.floor(Math.random() * activeDullPalette.length)],
         });
 
         // place colorable “nouns”
@@ -223,7 +344,6 @@
         }));
 
         levelWidth = Math.max(...platforms.map((p) => p.x + p.w), goal.x + goal.w) + 200;
-
         gameState = "start";
       }
 
@@ -278,6 +398,23 @@
         pop();
       }
 
+      function drawPlatforms() {
+        rectMode(CORNER);
+        platforms.forEach((p) => {
+          fill(color(p.color));
+          stroke(0, 0, 0, 30);
+          strokeWeight(2);
+          rect(p.x, p.y, p.w, p.h);
+        });
+        noStroke();
+      }
+
+      function drawGoal() {
+        rectMode(CORNER);
+        fill(color(goal.color));
+        rect(goal.x, goal.y, goal.w, goal.h);
+      }
+
       function drawThings() {
         imageMode(CENTER);
         for (let t of things) {
@@ -300,7 +437,8 @@
           // platform collisions
           for (let p of platforms) {
             if (n.x > p.x && n.x < p.x + p.w && n.y > p.y && n.y < p.y + p.h) {
-              p.color = color(random(360), 80, 80);
+              // recolor that platform with a bright color
+              p.color = activeBrightPalette[Math.floor(Math.random() * activeBrightPalette.length)];
               noggles.splice(i, 1);
               break;
             }
@@ -371,6 +509,7 @@
       function playerJumpRequested() {
         jumpBufferTimer = JUMP_BUFFER_FRAMES;
       }
+
       function tryPerformJump() {
         if ((player.isOnGround || coyoteTimer > 0) && jumpBufferTimer > 0) {
           player.velocityY = JUMP_FORCE;
@@ -398,24 +537,24 @@
         // buffered jump
         if (player.isOnGround && jumpBufferTimer > 0) tryPerformJump();
 
-        // vertical
+        // gravity & vertical
         player.velocityY += GRAVITY;
         player.y += player.velocityY;
         player.isOnGround = false;
 
         platforms.forEach((p) => {
           if (isColliding(player, p)) {
-            let prevB = player.y - player.velocityY + player.height / 2,
-              topY = p.y;
-            if (player.velocityY > 0 && prevB <= topY + 1) {
+            let prevBottom = player.y - player.velocityY + player.height / 2;
+            let topY = p.y;
+            if (player.velocityY > 0 && prevBottom <= topY + 1) {
               player.y = topY - player.height / 2;
               player.velocityY = 0;
               player.isOnGround = true;
               coyoteTimer = COYOTE_FRAMES;
             } else if (player.velocityY < 0) {
-              let prevT = player.y - player.velocityY - player.height / 2,
-                botY = p.y + p.h;
-              if (prevT >= botY - 1) {
+              let prevTop = player.y - player.velocityY - player.height / 2;
+              let botY = p.y + p.h;
+              if (prevTop >= botY - 1) {
                 player.y = botY + player.height / 2;
                 player.velocityY = 0;
               }
@@ -427,8 +566,8 @@
       }
 
       function updatePlayerAnimationState() {
-        let a = player.animation,
-          set = a.currentSet;
+        let a = player.animation;
+        let set = a.currentSet;
         if (player.velocityY < -0.1 && !player.isOnGround) set = "jump";
         else if (player.velocityY > 0.1 && !player.isOnGround) set = "fall";
         else if (player.isOnGround) set = abs(player.velocityX) > 0.1 ? "walk" : "idle";
@@ -440,14 +579,38 @@
       }
 
       function advancePlayerFrame() {
-        let a = player.animation,
-          d = ANIMATION_DEFINITIONS[a.currentSet];
+        let a = player.animation;
+        let d = ANIMATION_DEFINITIONS[a.currentSet];
         if (!d) return;
         a.tick++;
         if (a.tick >= d.speed) {
           a.tick = 0;
           a.frameIndex = (a.frameIndex + 1) % d.frames;
         }
+      }
+
+      function drawPlayer() {
+        if (!player.spriteSheet || imageLoadingError) {
+          push();
+          rectMode(CENTER);
+          fill(255, 0, 0);
+          rect(player.x, player.y, player.width, player.height);
+          pop();
+          return;
+        }
+        let a = player.animation;
+        let dir = a.facingDirection === 1 ? "right" : "left";
+        let m = ANIMATION_ROW_MAP[a.currentSet][dir];
+        let f = a.frameIndex % ANIMATION_DEFINITIONS[a.currentSet].frames;
+        let sx = (m.startFrame + f) * FRAME_WIDTH;
+        let sy = m.row * FRAME_HEIGHT;
+        let dw = FRAME_WIDTH * PLAYER_VISUAL_SCALE;
+        let dh = FRAME_HEIGHT * PLAYER_VISUAL_SCALE;
+        let yoff = (dh - player.height) / 2;
+        let dy = player.y - yoff;
+        push();
+        image(player.spriteSheet, player.x, dy, dw, dh, sx, sy, FRAME_WIDTH, FRAME_HEIGHT);
+        pop();
       }
 
       function drawUI() {
@@ -480,47 +643,6 @@
         fill(0, 0, 100);
         textSize(24);
         text(`Score: ${score}`, width - 80, 40);
-      }
-
-      function drawPlatforms() {
-        rectMode(CORNER);
-        platforms.forEach((p) => {
-          fill(p.color);
-          stroke(0, 0, 0, 30);
-          strokeWeight(2);
-          rect(p.x, p.y, p.w, p.h);
-        });
-        noStroke();
-      }
-
-      function drawGoal() {
-        rectMode(CORNER);
-        fill(goal.color);
-        rect(goal.x, goal.y, goal.w, goal.h);
-      }
-
-      function drawPlayer() {
-        if (!player.spriteSheet || imageLoadingError) {
-          push();
-          rectMode(CENTER);
-          fill(255, 0, 0);
-          rect(player.x, player.y, player.width, player.height);
-          pop();
-          return;
-        }
-        let a = player.animation,
-          dir = a.facingDirection === 1 ? "right" : "left",
-          m = ANIMATION_ROW_MAP[a.currentSet][dir],
-          f = a.frameIndex % ANIMATION_DEFINITIONS[a.currentSet].frames,
-          sx = (m.startFrame + f) * FRAME_WIDTH,
-          sy = m.row * FRAME_HEIGHT,
-          dw = FRAME_WIDTH * PLAYER_VISUAL_SCALE,
-          dh = FRAME_HEIGHT * PLAYER_VISUAL_SCALE,
-          yoff = (dh - player.height) / 2,
-          dy = player.y - yoff;
-        push();
-        image(player.spriteSheet, player.x, dy, dw, dh, sx, sy, FRAME_WIDTH, FRAME_HEIGHT);
-        pop();
       }
 
       function isColliding(a, b) {
