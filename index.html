@@ -40,7 +40,13 @@
     <div class="game-container" id="game-container"></div>
     <script>
       // — UI control state —
-      let joystick = { x: 0, y: 0, outer: 60, inner: 30 };
+      let joystick = {
+        x: 0,
+        y: 0,
+        outer: 60, // visual radius
+        inner: 30, // knob radius
+        activeRadius: 100, // how far off–circle a touch still counts
+      };
       let jumpBtn = { x: 0, y: 0, r: 40 };
 
       // — Camera —
@@ -414,8 +420,16 @@
         }
       }
 
+      // Fall threshold multiplier (2× the screen height)
+      const FALL_OFFSCREEN_MULTIPLIER = 1.5;
+
       function checkFallen() {
-        if (player.y - player.height / 2 > height + player.height) {
+        // world‑Y of the player's bottom:
+        const playerBottomY = player.y + player.height / 2;
+        // viewport bottom in world‑Y, extended by multiplier:
+        const fallLimitY = cameraY + height * FALL_OFFSCREEN_MULTIPLIER;
+
+        if (playerBottomY > fallLimitY) {
           gameState = "gameOver";
         }
       }
