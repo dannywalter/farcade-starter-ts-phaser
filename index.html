@@ -36,8 +36,8 @@
       }
       .game-container,
       canvas {
-        user-select: none; /* stops text highlight on long touch/drag */
-        touch-action: none; /* blocks default panning/zooming */
+        user-select: none;
+        touch-action: none;
         -webkit-user-select: none;
         -ms-touch-action: none;
       }
@@ -47,7 +47,7 @@
     <div class="game-container" id="game-container"></div>
     <script>
       // — UI control state —
-      let joystick = { x: 0, y: 0, outer: 60, inner: 30, activeRadius: 100 };
+      let joystick = { x: 0, y: 0, outer: 60, inner: 30, activeRadius: 150 };
       let jumpBtn = { x: 0, y: 0, r: 40 };
 
       // — Camera —
@@ -57,16 +57,16 @@
 
       // — Projectile (noggle) state —
       let noggles = [];
-      const NOGGLE_SPEED = 0.2; // base throw multiplier
-      const MAX_THROW_DISTANCE = 200; // cap influence distance
-      const MAX_THROW_SPEED = 15; // cap maximum speed
+      const NOGGLE_SPEED = 0.2;
+      const MAX_THROW_DISTANCE = 200;
+      const MAX_THROW_SPEED = 15;
 
       // — Noggle image & spin —
       let noggleImg;
 
       // — Sprite sheet & player setup —
       const SPRITE_URL =
-        "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/myNounsSpritesheet-OU77yPsOSF8J2NLPWWWFPVya9XMAQS.png";
+        "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/myNounsSpritesheet_003-ymLtEkBrlNZMQkj37npozrPDdamMbF.png";
       const FRAME_WIDTH = 48,
         FRAME_HEIGHT = 48;
       let nounSpriteSheet,
@@ -78,10 +78,16 @@
         goal,
         levelWidth,
         gameState;
-      const PLAYER_MOVE_SPEED = 4;
-      const JUMP_FORCE = -11;
+      const PLAYER_MOVE_SPEED = 5;
+      const JUMP_FORCE = -15;
       const GRAVITY = 0.5;
-      const PLAYER_VISUAL_SCALE = 2.0;
+      const PLAYER_VISUAL_SCALE = 3.0;
+
+      // coyote time & jump buffer
+      const COYOTE_FRAMES = 6;
+      const JUMP_BUFFER_FRAMES = 6;
+      let coyoteTimer = 0;
+      let jumpBufferTimer = 0;
 
       const ANIMATION_DEFINITIONS = {
         idle: { frames: 16, speed: 8 },
@@ -120,18 +126,26 @@
         imageMode(CENTER);
 
         initializeGame();
-
         initialCameraY = player.y - height / 2;
         cameraY = initialCameraY;
-
         joystick.x = 80;
         joystick.y = height - 80;
         jumpBtn.x = width - 80;
         jumpBtn.y = height - 80;
+
+        // log jump metrics
+        let h = (JUMP_FORCE * JUMP_FORCE) / (2 * GRAVITY),
+          airtime = (2 * abs(JUMP_FORCE)) / GRAVITY / 60;
+        console.log(
+          `Max jump height ≈${h.toFixed(1)}px (~${(h / FRAME_HEIGHT).toFixed(2)} tiles), ` +
+            `airtime ≈${airtime.toFixed(2)}s`,
+        );
       }
 
       function initializeGame() {
         noggles.length = 0;
+        coyoteTimer = 0;
+        jumpBufferTimer = 0;
         player = {
           x: 100,
           y: height - 100,
@@ -143,7 +157,6 @@
           spriteSheet: nounSpriteSheet,
           animation: { currentSet: "idle", facingDirection: 1, frameIndex: 0, tick: 0 },
         };
-
         platforms = [
           { x: 0, y: height - 50, w: 400, h: 50, color: color(120, 60, 60) },
           { x: 450, y: height - 120, w: 150, h: 20, color: color(120, 60, 70) },
@@ -155,8 +168,13 @@
           { x: 1700, y: height - 150, w: 300, h: 150, color: color(120, 60, 60) },
         ];
         goal = { x: 2050, y: height - 100, w: 50, h: 50, color: color(50, 100, 100) };
-        platforms.push({ x: goal.x - 25, y: goal.y + goal.h - 20, w: 100, h: 20, color: color(120, 60, 60) });
-
+        platforms.push({
+          x: goal.x - 25,
+          y: goal.y + goal.h - 20,
+          w: 100,
+          h: 20,
+          color: color(120, 60, 60),
+        });
         levelWidth = Math.max(...platforms.map((p) => p.x + p.w), goal.x + goal.w) + 200;
         gameState = "start";
       }
@@ -214,13 +232,10 @@
       function updateNoggles() {
         for (let i = noggles.length - 1; i >= 0; i--) {
           let n = noggles[i];
-          // physics
           n.vy += GRAVITY;
           n.x += n.vx;
           n.y += n.vy;
-          // spin
           n.angle += n.angularVelocity;
-          // collide
           for (let p of platforms) {
             if (n.x > p.x && n.x < p.x + p.w && n.y > p.y && n.y < p.y + p.h) {
               p.color = color(random(360), 80, 80);
@@ -228,7 +243,6 @@
               break;
             }
           }
-          // remove if far below
           if (n.y > cameraY + height * 2) noggles.splice(i, 1);
         }
       }
@@ -239,7 +253,7 @@
           push();
           translate(n.x, n.y);
           rotate(n.angle);
-          let size = n.r * 8; // adjust multiplier as desired
+          let size = n.r * 10; //NOGGLE SIZE
           image(noggleImg, 0, 0, size, size);
           pop();
         }
@@ -267,16 +281,23 @@
         }
         for (let t of touches) {
           if (dist(t.x, t.y, jumpBtn.x, jumpBtn.y) < jumpBtn.r) {
-            playerJump();
+            playerJumpRequested();
+            tryPerformJump();
             break;
           }
         }
       }
 
-      function playerJump() {
-        if (player.isOnGround) {
+      // buffer jump request
+      function playerJumpRequested() {
+        jumpBufferTimer = JUMP_BUFFER_FRAMES;
+      }
+      function tryPerformJump() {
+        if ((player.isOnGround || coyoteTimer > 0) && jumpBufferTimer > 0) {
           player.velocityY = JUMP_FORCE;
           player.isOnGround = false;
+          coyoteTimer = 0;
+          jumpBufferTimer = 0;
         }
       }
 
@@ -290,10 +311,19 @@
             player.velocityX = 0;
           }
         });
+
+        // timers
+        if (!player.isOnGround) coyoteTimer = max(coyoteTimer - 1, 0);
+        if (jumpBufferTimer > 0) jumpBufferTimer--;
+
+        // buffer jump on landing
+        if (player.isOnGround && jumpBufferTimer > 0) tryPerformJump();
+
         // vertical
         player.velocityY += GRAVITY;
         player.y += player.velocityY;
         player.isOnGround = false;
+
         platforms.forEach((p) => {
           if (isColliding(player, p)) {
             let prevB = player.y - player.velocityY + player.height / 2,
@@ -302,6 +332,7 @@
               player.y = topY - player.height / 2;
               player.velocityY = 0;
               player.isOnGround = true;
+              coyoteTimer = COYOTE_FRAMES;
             } else if (player.velocityY < 0) {
               let prevT = player.y - player.velocityY - player.height / 2,
                 botY = p.y + p.h;
@@ -312,6 +343,7 @@
             }
           }
         });
+
         player.x = constrain(player.x, player.width / 2, levelWidth - player.width / 2);
       }
 
@@ -340,22 +372,30 @@
       }
 
       function drawUI() {
+        // draw the outer static circle
         noFill();
         stroke(0, 0, 100, 50);
         strokeWeight(2);
         circle(joystick.x, joystick.y, joystick.outer * 2);
+
+        // figure out how far the knob should move
         let kx = joystick.x;
         for (let t of touches) {
-          if (dist(t.x, t.y, joystick.x, joystick.y) < joystick.outer) {
-            let dx = constrain(t.x - joystick.x, -joystick.outer + joystick.inner, joystick.outer - joystick.inner);
+          // use activeRadius here instead of outer
+          if (dist(t.x, t.y, joystick.x, joystick.y) < joystick.activeRadius) {
+            // clamp knob within the visible outer circle
+            let dx = constrain(t.x - joystick.x, -(joystick.outer - joystick.inner), joystick.outer - joystick.inner);
             kx += dx;
             break;
           }
         }
+
+        // draw the inner knob
         noStroke();
         fill(0, 0, 100, 80);
         circle(kx, joystick.y, joystick.inner * 2);
 
+        // draw jump button
         fill(0, 0, 100, 20);
         circle(jumpBtn.x, jumpBtn.y, jumpBtn.r * 2);
         fill(0, 0, 100, 80);
@@ -455,7 +495,10 @@
 
       function keyPressed() {
         if (gameState === "playing") {
-          if ([UP_ARROW, 87, 32].includes(keyCode)) playerJump();
+          if ([UP_ARROW, 87, 32].includes(keyCode)) {
+            playerJumpRequested();
+            tryPerformJump();
+          }
         } else if (keyCode === 32) {
           initializeGame();
           gameState = "playing";
@@ -498,15 +541,25 @@
 
       function touchStarted() {
         if (gameState === "playing") {
+          // use newest touch so you can hold the joystick with another finger
           const t = touches[touches.length - 1];
+
+          // 1) Jump: only if you tapped inside the jump button
+          if (dist(t.x, t.y, jumpBtn.x, jumpBtn.y) <= jumpBtn.r) {
+            playerJumpRequested();
+            tryPerformJump();
+            return false;
+          }
+
+          // 2) Throw: only if you tapped outside joystick & jump button
           if (
             dist(t.x, t.y, joystick.x, joystick.y) > joystick.activeRadius &&
             dist(t.x, t.y, jumpBtn.x, jumpBtn.y) > jumpBtn.r
           ) {
             const wsx = player.x;
             const wsy = player.y - (FRAME_HEIGHT * PLAYER_VISUAL_SCALE) / 2;
-            const wex = cameraX + t.x,
-              wey = cameraY + t.y;
+            const wex = cameraX + t.x;
+            const wey = cameraY + t.y;
             const dxRaw = wex - wsx,
               dyRaw = wey - wsy;
             const distRaw = sqrt(dxRaw * dxRaw + dyRaw * dyRaw);
@@ -525,6 +578,8 @@
               angularVelocity: random(-0.2, 0.2),
             });
           }
+
+          // consume the event so browser doesn't scroll
           return false;
         } else {
           initializeGame();
