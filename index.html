@@ -57,7 +57,12 @@
 
       // — PLAYER CAPABILITIES —
       const PLAYER_MAX_JUMP_DIST = 300;
-      const PLAYER_MAX_JUMP_HEIGHT = 150;
+      const PLAYER_MAX_JUMP_HEIGHT = 170;
+
+      // — NOGGLE TUNING —
+      const NOGGLE_MAX_DISTANCE = 300; // max pull‑back distance
+      const NOGGLE_MAX_SPEED = 20; // max speed at full pull
+      const NOGGLE_GRAVITY = 0.45; // gravity applied to noggles
 
       // — PALETTES —
       const brightPalettes = {
@@ -91,12 +96,12 @@
 
       // — STATE —
       let joystick = { x: 0, y: 0, outer: 60, inner: 30, activeRadius: 150 };
-      let jumpBtn = { x: 0, y: 0, r: 40 };
+      let jumpBtn = { x: 0, y: 0, r: 80 };
       let cameraX = 0,
         cameraY = 0,
         initialCameraY = 0;
-      let noggles = [];
-      let things = [],
+      let noggles = [],
+        things = [],
         score = 0;
       let platforms = [],
         goal,
@@ -174,18 +179,18 @@
       function initializeGame() {
         randomSeed(millis());
         // choose palettes
-        const dullKeys = Object.keys(dullPalettes),
+        let dullKeys = Object.keys(dullPalettes),
           brightKeys = Object.keys(brightPalettes);
         activeDullPalette = dullPalettes[dullKeys[floor(random(dullKeys.length))]];
         activeBrightPalette = brightPalettes[brightKeys[floor(random(brightKeys.length))]];
 
-        // reset state
+        // reset
         noggles.length = 0;
         score = 0;
         coyoteTimer = 0;
         jumpBufferTimer = 0;
 
-        // player init
+        // player
         player = {
           x: 100,
           y: height - 100,
@@ -198,7 +203,7 @@
           animation: { currentSet: "idle", facingDirection: 1, frameIndex: 0, tick: 0 },
         };
 
-        // — STATIC FIRST PLATFORM —
+        // static first platform
         platforms = [
           {
             x: 0,
@@ -209,25 +214,17 @@
           },
         ];
 
-        // now start generating procedurally from the end of that one
-        let xPos = platforms[0].x + platforms[0].w; // 400
-        let prevY = platforms[0].y; // height - 50
-        let chunkIdx = 0;
-
+        // procedural platforms
+        let xPos = 400,
+          prevY = height - 50,
+          chunkIdx = 0;
         while (xPos < LEVEL_LENGTH) {
           let d = min(chunkIdx / DIFFICULTY_SCALE, 1);
-
-          // horizontal gap
           let gap = lerp(MIN_GAP, MAX_GAP, d);
           xPos += random(gap * 0.8, gap * 1.2);
-
-          // platform width
           let platW = random(MIN_PLAT_WIDTH, lerp(MAX_PLAT_WIDTH, MIN_PLAT_WIDTH, d));
-
-          // vertical variance (clamped so the player can still jump)
           let vertRange = lerp(PLAYER_MAX_JUMP_HEIGHT * 0.5, PLAYER_MAX_JUMP_HEIGHT, d);
           let newY = constrain(prevY + random(-vertRange, vertRange), 100, height - 150);
-
           platforms.push({
             x: xPos,
             y: newY,
@@ -235,15 +232,13 @@
             h: 20,
             color: activeDullPalette[floor(random(activeDullPalette.length))],
           });
-
           prevY = newY;
           xPos += platW;
           chunkIdx++;
         }
-
         levelWidth = xPos + 500;
 
-        // goal at end
+        // goal
         goal = {
           x: levelWidth - 200,
           y: random(height / 2, height - 200),
@@ -252,7 +247,7 @@
           color: activeBrightPalette[floor(random(activeBrightPalette.length))],
         };
 
-        // spawn things on every 3rd platform
+        // spawn things
         things = platforms
           .filter((_, i) => i % 3 === 0)
           .map((p, i) => {
@@ -267,23 +262,22 @@
             };
           });
 
-        // parallax clouds
-        clouds = Array.from({ length: 20 }, () => ({
-          x: random(0, levelWidth),
-          y: random(50, height / 2),
-          size: random(0.5, 1.5),
-          speedFactor: random(0.2, 0.5),
-        }));
+        // clouds
+        clouds = Array.from({ length: 20 }, () => {
+          return {
+            x: random(0, levelWidth),
+            y: random(50, height / 2),
+            size: random(0.5, 1.5),
+            speedFactor: random(0.2, 0.5),
+          };
+        });
 
         gameState = "start";
       }
 
       function draw() {
-        // sky
         background("#63A0F9");
-        // clouds
         drawClouds();
-
         if (gameState === "start") {
           displayStartScreen();
         } else if (gameState === "playing") {
@@ -375,11 +369,10 @@
       function updateNoggles() {
         for (let i = noggles.length - 1; i >= 0; i--) {
           let n = noggles[i];
-          n.vy += 0.5;
+          n.vy += NOGGLE_GRAVITY;
           n.x += n.vx;
           n.y += n.vy;
           n.angle += n.angularVelocity;
-
           // platform collision
           for (let p of platforms) {
             if (n.x > p.x && n.x < p.x + p.w && n.y > p.y && n.y < p.y + p.h) {
@@ -457,7 +450,6 @@
         // timers
         if (!player.isOnGround) coyoteTimer = max(coyoteTimer - 1, 0);
         if (jumpBufferTimer > 0) jumpBufferTimer--;
-        // buffered jump
         if (player.isOnGround && jumpBufferTimer > 0) tryPerformJump();
         // vertical
         player.velocityY += 0.5;
@@ -465,8 +457,8 @@
         player.isOnGround = false;
         platforms.forEach((p) => {
           if (isColliding(player, p)) {
-            let prevBottom = player.y - player.velocityY + player.height / 2;
-            if (player.velocityY > 0 && prevBottom <= p.y + 1) {
+            let prevBot = player.y - player.velocityY + player.height / 2;
+            if (player.velocityY > 0 && prevBot <= p.y + 1) {
               player.y = p.y - player.height / 2;
               player.velocityY = 0;
               player.isOnGround = true;
@@ -478,8 +470,8 @@
       }
 
       function updatePlayerAnimationState() {
-        let a = player.animation;
-        let set = a.currentSet;
+        let a = player.animation,
+          set = a.currentSet;
         if (player.velocityY < -0.1 && !player.isOnGround) set = "jump";
         else if (player.velocityY > 0.1 && !player.isOnGround) set = "fall";
         else if (player.isOnGround && abs(player.velocityX) > 0.1) set = "walk";
@@ -492,8 +484,8 @@
       }
 
       function advancePlayerFrame() {
-        let a = player.animation;
-        let d = ANIMATION_DEFS[a.currentSet];
+        let a = player.animation,
+          d = ANIMATION_DEFS[a.currentSet];
         if (!d) return;
         a.tick++;
         if (a.tick >= d.speed) {
@@ -511,23 +503,22 @@
           pop();
           return;
         }
-        let a = player.animation;
-        let dir = a.facingDirection === 1 ? "right" : "left";
-        let m = ANIMATION_MAP[a.currentSet][dir];
-        let f = a.frameIndex % ANIMATION_DEFS[a.currentSet].frames;
-        let sx = (m.startFrame + f) * FRAME_WIDTH;
-        let sy = m.row * FRAME_HEIGHT;
-        let dw = FRAME_WIDTH * 3;
-        let dh = FRAME_HEIGHT * 3;
-        let yoff = (dh - player.height) / 2;
-        let dy = player.y - yoff;
+        let a = player.animation,
+          dir = a.facingDirection === 1 ? "right" : "left",
+          m = ANIMATION_MAP[a.currentSet][dir],
+          f = a.frameIndex % ANIMATION_DEFS[a.currentSet].frames,
+          sx = (m.startFrame + f) * FRAME_WIDTH,
+          sy = m.row * FRAME_HEIGHT,
+          dw = FRAME_WIDTH * 3,
+          dh = FRAME_HEIGHT * 3,
+          yoff = (dh - player.height) / 2,
+          dy = player.y - yoff;
         push();
         image(player.spriteSheet, player.x, dy, dw, dh, sx, sy, FRAME_WIDTH, FRAME_HEIGHT);
         pop();
       }
 
       function drawUI() {
-        // joystick
         noFill();
         stroke(0, 0, 100, 50);
         strokeWeight(2);
@@ -543,15 +534,11 @@
         noStroke();
         fill(0, 0, 100, 80);
         circle(kx, joystick.y, joystick.inner * 2);
-
-        // jump button
         fill(0, 0, 100, 20);
         circle(jumpBtn.x, jumpBtn.y, jumpBtn.r * 2);
         fill(0, 0, 100, 80);
         textSize(24);
         text("↑", jumpBtn.x, jumpBtn.y + 2);
-
-        // score
         noStroke();
         fill(0, 0, 100);
         textSize(24);
@@ -632,8 +619,8 @@
               dxRaw = wex - wsx,
               dyRaw = wey - wsy,
               distRaw = sqrt(dxRaw * dxRaw + dyRaw * dyRaw),
-              eff = min(distRaw, PLAYER_MAX_JUMP_DIST),
-              speed = (eff / PLAYER_MAX_JUMP_DIST) * 15,
+              eff = min(distRaw, NOGGLE_MAX_DISTANCE),
+              speed = (eff / NOGGLE_MAX_DISTANCE) * NOGGLE_MAX_SPEED,
               angle = atan2(dyRaw, dxRaw),
               dx = cos(angle) * speed,
               dy = sin(angle) * speed;
@@ -664,8 +651,8 @@
               dxRaw = wex - wsx,
               dyRaw = wey - wsy,
               distRaw = sqrt(dxRaw * dxRaw + dyRaw * dyRaw),
-              eff = min(distRaw, PLAYER_MAX_JUMP_DIST),
-              speed = (eff / PLAYER_MAX_JUMP_DIST) * 15,
+              eff = min(distRaw, NOGGLE_MAX_DISTANCE),
+              speed = (eff / NOGGLE_MAX_DISTANCE) * NOGGLE_MAX_SPEED,
               angle = atan2(dyRaw, dxRaw),
               dx = cos(angle) * speed,
               dy = sin(angle) * speed;
