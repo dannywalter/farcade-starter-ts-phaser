@@ -47,22 +47,22 @@
     <div class="game-container" id="game-container"></div>
     <script>
       // — CONFIGURATION —
-      const LEVEL_LENGTH = 10000; // total world width
-      const CHUNK_WIDTH = 500; // not used directly but conceptual
+      const LEVEL_LENGTH = 10000;
+      const CHUNK_WIDTH = 500;
       const MIN_PLAT_WIDTH = 100;
       const MAX_PLAT_WIDTH = 200;
       const MIN_GAP = 100;
       const MAX_GAP = 250;
-      const DIFFICULTY_SCALE = 5; // chunks over which difficulty ramps
+      const DIFFICULTY_SCALE = 5;
 
       // — PLAYER CAPABILITIES —
       const PLAYER_MAX_JUMP_DIST = 300;
       const PLAYER_MAX_JUMP_HEIGHT = 170;
 
       // — NOGGLE TUNING —
-      const NOGGLE_MAX_DISTANCE = 300; // max pull‑back distance
-      const NOGGLE_MAX_SPEED = 20; // max speed at full pull
-      const NOGGLE_GRAVITY = 0.45; // gravity applied to noggles
+      const NOGGLE_MAX_DISTANCE = 300;
+      const NOGGLE_MAX_SPEED = 20;
+      const NOGGLE_GRAVITY = 0.45;
 
       // — PALETTES —
       const brightPalettes = {
@@ -178,13 +178,14 @@
 
       function initializeGame() {
         randomSeed(millis());
+
         // choose palettes
         let dullKeys = Object.keys(dullPalettes),
           brightKeys = Object.keys(brightPalettes);
         activeDullPalette = dullPalettes[dullKeys[floor(random(dullKeys.length))]];
         activeBrightPalette = brightPalettes[brightKeys[floor(random(brightKeys.length))]];
 
-        // reset
+        // reset state
         noggles.length = 0;
         score = 0;
         coyoteTimer = 0;
@@ -247,14 +248,16 @@
           color: activeBrightPalette[floor(random(activeBrightPalette.length))],
         };
 
-        // spawn things
+        // spawn things near top of viewport
+        let topOfViewport = player.y - height / 2;
         things = platforms
           .filter((_, i) => i % 3 === 0)
           .map((p, i) => {
             let tx = random(p.x + 10, p.x + p.w - 10);
+            let ty = topOfViewport + random(50, 150);
             return {
               x: tx,
-              y: p.y - 32,
+              y: ty,
               size: 64,
               img: loadedThingImgs[i % loadedThingImgs.length],
               gray: loadedThingGrayImgs[i % loadedThingGrayImgs.length],
@@ -263,14 +266,12 @@
           });
 
         // clouds
-        clouds = Array.from({ length: 20 }, () => {
-          return {
-            x: random(0, levelWidth),
-            y: random(50, height / 2),
-            size: random(0.5, 1.5),
-            speedFactor: random(0.2, 0.5),
-          };
-        });
+        clouds = Array.from({ length: 20 }, () => ({
+          x: random(0, levelWidth),
+          y: random(50, height / 2),
+          size: random(0.5, 1.5),
+          speedFactor: random(0.2, 0.5),
+        }));
 
         gameState = "start";
       }
