@@ -157,17 +157,45 @@
           spriteSheet: nounSpriteSheet,
           animation: { currentSet: "idle", facingDirection: 1, frameIndex: 0, tick: 0 },
         };
+
+        // — Extended Level Layout for Noggle Tag —
+        // sections: start → ruins → drop → stairs → sprint → goal
         platforms = [
+          // 0) Ground stretch
           { x: 0, y: height - 50, w: 400, h: 50, color: color(120, 60, 60) },
-          { x: 450, y: height - 120, w: 150, h: 20, color: color(120, 60, 70) },
-          { x: 650, y: height - 220, w: 200, h: 20, color: color(120, 60, 70) },
-          { x: 400, y: height - 320, w: 100, h: 20, color: color(120, 60, 70) },
-          { x: 900, y: height - 100, w: 250, h: 100, color: color(120, 60, 65) },
-          { x: 1200, y: height - 250, w: 180, h: 20, color: color(120, 60, 70) },
-          { x: 1450, y: height - 350, w: 150, h: 20, color: color(120, 60, 70) },
-          { x: 1700, y: height - 150, w: 300, h: 150, color: color(120, 60, 60) },
+
+          // 1) Original skill‑step sequence
+          { x: 300, y: height - 250, w: 150, h: 20, color: color(120, 60, 70) },
+          { x: 650, y: height - 350, w: 120, h: 20, color: color(120, 60, 70) },
+          { x: 1000, y: height - 250, w: 140, h: 20, color: color(120, 60, 65) },
+          { x: 1350, y: height - 400, w: 100, h: 20, color: color(120, 60, 70) },
+          { x: 1700, y: height - 300, w: 180, h: 20, color: color(120, 60, 60) },
+
+          // 2) “Floating ruins” — three small drifting platforms
+          { x: 2050, y: height - 280, w: 110, h: 20, color: color(200, 50, 80) },
+          { x: 2300, y: height - 240, w: 90, h: 20, color: color(200, 50, 80) },
+          { x: 2550, y: height - 300, w: 130, h: 20, color: color(200, 50, 80) },
+
+          // 3) Descend & dash
+          { x: 2800, y: height - 180, w: 200, h: 20, color: color(120, 60, 65) },
+
+          // 4) Staircase climb (three rising steps)
+          { x: 3100, y: height - 230, w: 100, h: 20, color: color(120, 60, 70) },
+          { x: 3275, y: height - 290, w: 100, h: 20, color: color(120, 60, 70) },
+          { x: 3450, y: height - 350, w: 100, h: 20, color: color(120, 60, 70) },
+
+          // 5) Long sprint platform
+          { x: 3700, y: height - 150, w: 600, h: 20, color: color(120, 60, 60) },
         ];
-        goal = { x: 2050, y: height - 100, w: 50, h: 50, color: color(50, 100, 100) };
+
+        // Goal + landing pad
+        goal = {
+          x: 4400,
+          y: height - 150 - 50, // sits 50px above the sprint platform
+          w: 50,
+          h: 50,
+          color: color(50, 100, 100),
+        };
         platforms.push({
           x: goal.x - 25,
           y: goal.y + goal.h - 20,
@@ -175,7 +203,10 @@
           h: 20,
           color: color(120, 60, 60),
         });
+
+        // recompute the world width
         levelWidth = Math.max(...platforms.map((p) => p.x + p.w), goal.x + goal.w) + 200;
+
         gameState = "start";
       }
 
@@ -253,7 +284,7 @@
           push();
           translate(n.x, n.y);
           rotate(n.angle);
-          let size = n.r * 10; //NOGGLE SIZE
+          let size = n.r * 10; // NOGGLE SIZE
           image(noggleImg, 0, 0, size, size);
           pop();
         }
@@ -288,7 +319,6 @@
         }
       }
 
-      // buffer jump request
       function playerJumpRequested() {
         jumpBufferTimer = JUMP_BUFFER_FRAMES;
       }
@@ -316,7 +346,7 @@
         if (!player.isOnGround) coyoteTimer = max(coyoteTimer - 1, 0);
         if (jumpBufferTimer > 0) jumpBufferTimer--;
 
-        // buffer jump on landing
+        // buffered jump on landing
         if (player.isOnGround && jumpBufferTimer > 0) tryPerformJump();
 
         // vertical
@@ -372,30 +402,24 @@
       }
 
       function drawUI() {
-        // draw the outer static circle
         noFill();
         stroke(0, 0, 100, 50);
         strokeWeight(2);
         circle(joystick.x, joystick.y, joystick.outer * 2);
 
-        // figure out how far the knob should move
         let kx = joystick.x;
         for (let t of touches) {
-          // use activeRadius here instead of outer
           if (dist(t.x, t.y, joystick.x, joystick.y) < joystick.activeRadius) {
-            // clamp knob within the visible outer circle
             let dx = constrain(t.x - joystick.x, -(joystick.outer - joystick.inner), joystick.outer - joystick.inner);
             kx += dx;
             break;
           }
         }
 
-        // draw the inner knob
         noStroke();
         fill(0, 0, 100, 80);
         circle(kx, joystick.y, joystick.inner * 2);
 
-        // draw jump button
         fill(0, 0, 100, 20);
         circle(jumpBtn.x, jumpBtn.y, jumpBtn.r * 2);
         fill(0, 0, 100, 80);
@@ -541,17 +565,14 @@
 
       function touchStarted() {
         if (gameState === "playing") {
-          // use newest touch so you can hold the joystick with another finger
           const t = touches[touches.length - 1];
 
-          // 1) Jump: only if you tapped inside the jump button
           if (dist(t.x, t.y, jumpBtn.x, jumpBtn.y) <= jumpBtn.r) {
             playerJumpRequested();
             tryPerformJump();
             return false;
           }
 
-          // 2) Throw: only if you tapped outside joystick & jump button
           if (
             dist(t.x, t.y, joystick.x, joystick.y) > joystick.activeRadius &&
             dist(t.x, t.y, jumpBtn.x, jumpBtn.y) > jumpBtn.r
@@ -579,7 +600,6 @@
             });
           }
 
-          // consume the event so browser doesn't scroll
           return false;
         } else {
           initializeGame();
