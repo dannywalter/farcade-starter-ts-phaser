@@ -45,7 +45,7 @@
         y: 0,
         outer: 60, // visual radius
         inner: 30, // knob radius
-        activeRadius: 100, // how far off–circle a touch still counts
+        activeRadius: 150, // how far off–circle a touch still counts
       };
       let jumpBtn = { x: 0, y: 0, r: 40 };
 
@@ -221,8 +221,10 @@
         }
         // joystick (touch)
         for (let t of touches) {
-          if (dist(t.x, t.y, joystick.x, joystick.y) < joystick.outer) {
+          // use activeRadius here:
+          if (dist(t.x, t.y, joystick.x, joystick.y) < joystick.activeRadius) {
             let dx = t.x - joystick.x;
+            // keep knob constrained to outer circle
             if (abs(dx) > joystick.inner) {
               player.velocityX = dx > 0 ? PLAYER_MOVE_SPEED : -PLAYER_MOVE_SPEED;
               player.animation.facingDirection = dx > 0 ? 1 : -1;
@@ -307,11 +309,13 @@
       }
 
       function drawUI() {
-        // joystick
+        // base circle (outer)
         noFill();
         stroke(0, 0, 100, 50);
         strokeWeight(2);
         circle(joystick.x, joystick.y, joystick.outer * 2);
+
+        // knob logic unchanged, still using `outer`:
         let kx = joystick.x;
         for (let t of touches) {
           if (dist(t.x, t.y, joystick.x, joystick.y) < joystick.outer) {
