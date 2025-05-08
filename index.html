@@ -34,6 +34,13 @@
         height: 100%;
         display: block;
       }
+      .game-container,
+      canvas {
+        user-select: none; /* stops text highlight on long touch/drag */
+        touch-action: none; /* blocks default panning/zooming */
+        -webkit-user-select: none;
+        -ms-touch-action: none;
+      }
     </style>
   </head>
   <body>
@@ -71,7 +78,7 @@
       const PLAYER_MOVE_SPEED = 4;
       const JUMP_FORCE = -11;
       const GRAVITY = 0.5;
-      const PLAYER_VISUAL_SCALE = 1.5;
+      const PLAYER_VISUAL_SCALE = 3;
 
       const ANIMATION_DEFINITIONS = {
         idle: { frames: 16, speed: 8 },
@@ -99,20 +106,29 @@
       }
 
       function setup() {
+        // 1) Tell p5 to use the device pixel ratio (1, 2, 3, etc.)
+        pixelDensity(window.devicePixelRatio || 1);
+
+        // 2) Create our logical 500×800 canvas
         const cnv = createCanvas(500, 800).parent("game-container");
+
+        // 3) Remove p5's inline width/height so our CSS (width:100%;height:100%) takes over
         cnv.elt.removeAttribute("style");
+
+        // 4) Turn off smoothing so pixel art stays crisp
         noSmooth();
+
         colorMode(HSB, 360, 100, 100, 100);
         textAlign(CENTER, CENTER);
         imageMode(CENTER);
 
         initializeGame();
 
-        // lock initial vertical camera so it only follows up
+        // lock initial vertical camera so it only follows the player *up*
         initialCameraY = player.y - height / 2;
         cameraY = initialCameraY;
 
-        // position on-screen controls
+        // position on‑screen controls
         joystick.x = 80;
         joystick.y = height - 80;
         jumpBtn.x = width - 80;
