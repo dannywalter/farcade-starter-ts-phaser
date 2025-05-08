@@ -1,197 +1,230 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- ensure mobile viewport sizing -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>Platformer Game</title>
-    <!-- Link to the p5.js library from a CDN -->
+    <!-- p5.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
-    <!-- Optional: p5.sound.min.js if you add sound later -->
-    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/addons/p5.sound.min.js"></script> -->
+    <!-- Farcade SDK (if you need it) -->
+    <script src="https://cdn.jsdelivr.net/npm/@farcade/game-sdk@latest/dist/index.min.js"></script>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #333; /* Optional: background for the page outside the canvas */
-            overflow: hidden; /* Prevents scrollbars if canvas is slightly off */
-        }
-        /* main will automatically be created by p5.js for the canvas */
+      /* full‐screen flex container, but capped at 500×800 */
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background-color: #333;
+      }
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      /* wrapper that limits our p5 canvas to max 500×800 */
+      .game-container {
+        width: 100vw;
+        height: 100vh;
+        max-width: 500px;
+        max-height: 800px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      /* let the canvas stretch to fill that container */
+      .game-container canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
     </style>
   </head>
+
   <body>
-    <div class="game-frame">
-      <div class="game-container">
-        <canvas id="gameCanvas"></canvas>
-      </div>
-    </div>
-    <!-- 
-      In development mode, this links to your TypeScript code.
-      In production mode, this is replaced with the compiled JavaScript.
-    -->
+    <div class="game-container" id="game-container"></div>
+
     <script>
-      // --- Game Configuration ---
-      // Player
+      // --- Sprite Sheet Configuration ---
+      const SPRITE_URL =
+        "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/myNounsSpritesheet-OU77yPsOSF8J2NLPWWWFPVya9XMAQS.png";
+      const FRAME_WIDTH = 48;
+      const FRAME_HEIGHT = 48;
+
+      // --- Player Configuration ---
       let player;
-      const PLAYER_WIDTH = 30;
-      const PLAYER_HEIGHT = 40;
-      const PLAYER_MOVE_SPEED = 4; // Horizontal speed
-      const JUMP_FORCE = -11;      // Negative value for upward jump
+      const PLAYER_MOVE_SPEED = 4;
+      const JUMP_FORCE = -11;
       const GRAVITY = 0.5;
+      const PLAYER_VISUAL_SCALE = 1.5;
 
-      // Platforms & Level
-      let platforms = [];
-      let goal;
-      let levelWidth; // Total width of the scrollable level
+      // --- Animation Definitions (Frames & Speed) ---
+      const ANIMATION_DEFINITIONS = {
+        idle: { frames: 16, speed: 8 },
+        walk: { frames: 8, speed: 6 },
+        jump: { frames: 8, speed: 7 },
+        fall: { frames: 8, speed: 7 },
+      };
 
-      // Camera
-      let cameraX = 0;
+      // --- Animation Row & Start Frame Mapping ---
+      const ANIMATION_ROW_MAP = {
+        idle: { right: { row: 4, startFrame: 0 }, left: { row: 6, startFrame: 0 } },
+        walk: { right: { row: 0, startFrame: 0 }, left: { row: 2, startFrame: 0 } },
+        jump: { right: { row: 0, startFrame: 8 }, left: { row: 2, startFrame: 8 } },
+        fall: { right: { row: 0, startFrame: 8 }, left: { row: 2, startFrame: 8 } },
+      };
 
-      // Game State
-      let gameState; // "start", "playing", "gameOver", "win"
+      let nounSpriteSheet,
+        imageLoadingError = false;
+      let platforms = [],
+        goal,
+        levelWidth,
+        cameraX = 0,
+        gameState;
 
-      // --- p5.js Functions ---
+      function preload() {
+        nounSpriteSheet = loadImage(
+          SPRITE_URL,
+          () => console.log("Sprite sheet loaded"),
+          () => {
+            console.error("Sprite load failed");
+            imageLoadingError = true;
+          },
+        );
+      }
+
       function setup() {
-        createCanvas(500, 800); // Mobile portrait orientation
-        colorMode(HSB, 360, 100, 100, 100); // Hue, Saturation, Brightness, Alpha
+        // internal coordinate system stays 500×800
+        const cnv = createCanvas(500, 800);
+        // remove the p5-added inline sizing:
+        cnv.elt.removeAttribute("style");
+        // put it inside our wrapper
+        cnv.parent("game-container");
+        colorMode(HSB, 360, 100, 100, 100);
         textAlign(CENTER, CENTER);
-        // p5.js default font will be used
+        imageMode(CENTER);
         initializeGame();
       }
 
       function initializeGame() {
         player = {
           x: 100,
-          y: height - 100, // Initial Y position (expecting a platform here)
-          width: PLAYER_WIDTH,
-          height: PLAYER_HEIGHT,
+          y: height - 100,
+          width: FRAME_WIDTH,
+          height: FRAME_HEIGHT,
           velocityX: 0,
           velocityY: 0,
           isOnGround: false,
-          color: color(210, 90, 95) // A distinct blue for the player
+          spriteSheet: nounSpriteSheet,
+          animation: { currentSet: "idle", facingDirection: 1, frameIndex: 0, tick: 0 },
         };
 
-        // Define level platforms: { x, y, width, height, color }
-        // y is top edge, x is left edge
         platforms = [
-          // Starting ground
           { x: 0, y: height - 50, width: 400, height: 50, color: color(120, 60, 60) },
-          // Series of platforms
           { x: 450, y: height - 120, width: 150, height: 20, color: color(120, 60, 70) },
           { x: 650, y: height - 220, width: 200, height: 20, color: color(120, 60, 70) },
-          { x: 400, y: height - 320, width: 100, height: 20, color: color(120, 60, 70) }, // Higher small platform
-          { x: 900, y: height - 100, width: 250, height: 100, color: color(120, 60, 65) }, // Wider platform
+          { x: 400, y: height - 320, width: 100, height: 20, color: color(120, 60, 70) },
+          { x: 900, y: height - 100, width: 250, height: 100, color: color(120, 60, 65) },
           { x: 1200, y: height - 250, width: 180, height: 20, color: color(120, 60, 70) },
           { x: 1450, y: height - 350, width: 150, height: 20, color: color(120, 60, 70) },
-          { x: 1700, y: height - 150, width: 300, height: 150, color: color(120, 60, 60) } // Large platform before goal
+          { x: 1700, y: height - 150, width: 300, height: 150, color: color(120, 60, 60) },
         ];
 
-        goal = {
-          x: 2050, // Position the goal object
-          y: height - 100, // On a conceptual final platform
-          width: 50,
-          height: 50,
-          color: color(50, 100, 100) // Bright yellow goal
-        };
-        platforms.push({x: goal.x - 25, y: goal.y + goal.height - 20, width: 100, height: 20, color: color(120,60,60)}); // Platform for goal
-
-        // Calculate total level width
-        levelWidth = 0;
-        platforms.forEach(p => {
-          if (p.x + p.width > levelWidth) levelWidth = p.x + p.width;
+        goal = { x: 2050, y: height - 100, width: 50, height: 50, color: color(50, 100, 100) };
+        platforms.push({
+          x: goal.x - 25,
+          y: goal.y + goal.height - 20,
+          width: 100,
+          height: 20,
+          color: color(120, 60, 60),
         });
-        if (goal.x + goal.width > levelWidth) levelWidth = goal.x + goal.width;
-        levelWidth += 100; // Add some padding at the end
 
+        levelWidth = Math.max(...platforms.map((p) => p.x + p.width), goal.x + goal.width) + 200;
         cameraX = 0;
         gameState = "start";
       }
 
       function draw() {
-        background(195, 70, 40); // Sky blue background
+        background(195, 70, 40);
+        if (imageLoadingError && gameState !== "gameOver") {
+          fill(0, 0, 100);
+          textSize(18);
+          text("Error loading spritesheet.\nCheck console and refresh.", width / 2, height / 2);
+          return;
+        }
 
-        if (gameState === "start") {
-          displayStartScreen();
-        } else if (gameState === "playing") {
-          runGame();
-        } else if (gameState === "gameOver") {
-          // Draw game state frozen, then overlay
+        if (gameState === "start") displayStartScreen();
+        else if (gameState === "playing") runGame();
+        else {
           drawGameScene();
-          displayGameOverScreen();
-        } else if (gameState === "win") {
-          // Draw game state frozen, then overlay
-          drawGameScene();
-          displayWinScreen();
+          if (gameState === "gameOver") displayGameOverScreen();
+          else displayWinScreen();
         }
       }
 
       function displayStartScreen() {
-        fill(0, 0, 100); // White text
-        textSize(40);
-        text("Platform Adventure!", width / 2, height / 3);
-        textSize(24);
-        text("A/D or Arrows: Move", width / 2, height / 2 - 20);
-        text("W/Up/Space or Tap: Jump", width / 2, height / 2 + 20);
-        textSize(28);
-        text("Tap or Press Space to Start", width / 2, height / 2 + 80);
+        fill(0, 0, 100);
+        textSize(32);
+        text("Noun Platformer Deluxe!", width / 2, height / 3);
+        textSize(22);
+        text("A/D or ←→: Move", width / 2, height / 2 - 30);
+        text("W/↑/Space or Tap: Jump", width / 2, height / 2 + 10);
+        textSize(26);
+        text("Tap or Press Space to Start", width / 2, height / 2 + 70);
       }
 
       function displayGameOverScreen() {
-        fill(0, 0, 0, 60); // Semi-transparent dark overlay
+        fill(0, 0, 0, 60);
         rect(0, 0, width, height);
-
-        fill(0, 100, 100); // Red text
+        fill(0, 100, 100);
         textSize(54);
         text("Game Over", width / 2, height / 3);
         textSize(30);
-        text("Tap or Press Space to Restart", width / 2, height / 2 + 40);
+        text("Tap/Press Space to Restart", width / 2, height / 2 + 40);
       }
 
       function displayWinScreen() {
-        fill(120, 80, 100, 60); // Semi-transparent green overlay
+        fill(120, 80, 100, 60);
         rect(0, 0, width, height);
-
-        fill(120, 100, 100); // Green text
+        fill(120, 100, 100);
         textSize(60);
         text("You Win!", width / 2, height / 3);
         textSize(30);
-        text("Tap or Press Space to Play Again", width / 2, height / 2 + 40);
+        text("Tap/Press Space to Play Again", width / 2, height / 2 + 40);
       }
 
       function runGame() {
         handlePlayerInput();
         updatePlayer();
+        updatePlayerAnimationState();
+        advancePlayerFrame();
         updateCamera();
-        
         drawGameScene();
-
         checkGoal();
         checkFallen();
       }
 
       function drawGameScene() {
-        push(); // Apply camera transformation
+        push();
         translate(-cameraX, 0);
-
         drawPlatforms();
         drawGoal();
         drawPlayer();
-
-        pop(); // Restore drawing state (remove camera transformation)
-        // displayHUD(); // For score, lives, etc. if any
+        pop();
       }
 
-      // --- Player Logic ---
       function handlePlayerInput() {
-        player.velocityX = 0; // Reset horizontal speed each frame unless a key is pressed
-        if (keyIsDown(LEFT_ARROW) || keyIsDown(65)) { // 65 is 'A'
+        player.velocityX = 0;
+        if (keyIsDown(LEFT_ARROW) || keyIsDown(65)) {
           player.velocityX = -PLAYER_MOVE_SPEED;
+          player.animation.facingDirection = -1;
         }
-        if (keyIsDown(RIGHT_ARROW) || keyIsDown(68)) { // 68 is 'D'
+        if (keyIsDown(RIGHT_ARROW) || keyIsDown(68)) {
           player.velocityX = PLAYER_MOVE_SPEED;
+          player.animation.facingDirection = 1;
         }
       }
 
@@ -202,68 +235,95 @@
         }
       }
 
-      function updatePlayer() {
-        // Apply horizontal movement
-        player.x += player.velocityX;
+      function updatePlayerAnimationState() {
+        let anim = player.animation,
+          set = anim.currentSet;
+        if (player.velocityY < -0.1 && !player.isOnGround) set = "jump";
+        else if (player.velocityY > 0.1 && !player.isOnGround) set = "fall";
+        else if (player.isOnGround) set = abs(player.velocityX) > 0.1 ? "walk" : "idle";
+        if (set !== anim.currentSet) {
+          anim.currentSet = set;
+          anim.frameIndex = 0;
+          anim.tick = 0;
+        }
+      }
 
-        // Horizontal collision with platforms
+      function advancePlayerFrame() {
+        let anim = player.animation,
+          def = ANIMATION_DEFINITIONS[anim.currentSet];
+        if (!def) return;
+        anim.tick++;
+        if (anim.tick >= def.speed) {
+          anim.tick = 0;
+          anim.frameIndex = (anim.frameIndex + 1) % def.frames;
+        }
+      }
+
+      function updatePlayer() {
+        player.x += player.velocityX;
+        // horizontal collisions
         for (let p of platforms) {
           if (isColliding(player, p)) {
-            if (player.velocityX > 0) { // Moving right, collided with left side of platform
-              player.x = p.x - player.width / 2;
-            } else if (player.velocityX < 0) { // Moving left, collided with right side of platform
-              player.x = p.x + p.width + player.width / 2;
-            }
+            if (player.velocityX > 0) player.x = p.x - player.width / 2;
+            else player.x = p.x + p.width + player.width / 2;
             player.velocityX = 0;
           }
         }
-
-        // Apply gravity and vertical movement
+        // vertical
         player.velocityY += GRAVITY;
         player.y += player.velocityY;
-        player.isOnGround = false; // Assume player is airborne unless a collision says otherwise
-
-        // Vertical collision with platforms
+        player.isOnGround = false;
         for (let p of platforms) {
           if (isColliding(player, p)) {
-            if (player.velocityY > 0) { // Moving down, collided with top of platform
+            let prevBottom = player.y - player.velocityY + player.height / 2,
+              topY = p.y;
+            if (player.velocityY > 0 && prevBottom <= topY + 1) {
               player.y = p.y - player.height / 2;
               player.velocityY = 0;
               player.isOnGround = true;
-            } else if (player.velocityY < 0) { // Moving up, collided with bottom of platform
-              player.y = p.y + p.height + player.height / 2;
-              player.velocityY = 0;
+            } else if (player.velocityY < 0) {
+              let prevTop = player.y - player.velocityY - player.height / 2,
+                botY = p.y + p.height;
+              if (prevTop >= botY - 1) {
+                player.y = botY + player.height / 2;
+                player.velocityY = 0;
+              }
             }
           }
         }
-        
-        // Prevent player from going off the left edge of the level
-        if (player.x - player.width / 2 < 0) {
-          player.x = player.width / 2;
-          player.velocityX = 0;
-        }
-        // Prevent player from going off the right edge of the level
-        if (player.x + player.width / 2 > levelWidth) {
-          player.x = levelWidth - player.width / 2;
-          player.velocityX = 0;
-        }
+        // world bounds
+        player.x = constrain(player.x, player.width / 2, levelWidth - player.width / 2);
       }
 
       function drawPlayer() {
-        rectMode(CENTER); // Player's x, y is its center
-        fill(player.color);
-        stroke(0,0,0, 50); // Slight outline
-        strokeWeight(1);
-        rect(player.x, player.y, player.width, player.height);
-        noStroke();
+        if (!player.spriteSheet || imageLoadingError) {
+          push();
+          rectMode(CENTER);
+          fill(255, 0, 0);
+          rect(player.x, player.y, player.width, player.height);
+          pop();
+          return;
+        }
+        let anim = player.animation,
+          mapEntry = ANIMATION_ROW_MAP[anim.currentSet][anim.facingDirection === 1 ? "right" : "left"],
+          frame = anim.frameIndex % ANIMATION_DEFINITIONS[anim.currentSet].frames,
+          sx = (mapEntry.startFrame + frame) * FRAME_WIDTH,
+          sy = mapEntry.row * FRAME_HEIGHT,
+          dw = FRAME_WIDTH * PLAYER_VISUAL_SCALE,
+          dh = FRAME_HEIGHT * PLAYER_VISUAL_SCALE,
+          yOff = (dh - player.height) / 2,
+          drawY = player.y - yOff;
+
+        push();
+        image(player.spriteSheet, player.x, drawY, dw, dh, sx, sy, FRAME_WIDTH, FRAME_HEIGHT);
+        pop();
       }
 
-      // --- Platform and Goal Logic ---
       function drawPlatforms() {
-        rectMode(CORNER); // Platform's x, y is its top-left corner
+        rectMode(CORNER);
         for (let p of platforms) {
           fill(p.color);
-          stroke(0,0,0, 30);
+          stroke(0, 0, 0, 30);
           strokeWeight(2);
           rect(p.x, p.y, p.width, p.height);
         }
@@ -276,101 +336,59 @@
         rect(goal.x, goal.y, goal.width, goal.height);
       }
 
-      // --- Collision Detection ---
-      function isColliding(rect1, rect2_platform) {
-        // rect1 is player (center-based for x,y)
-        // rect2_platform is platform (corner-based for x,y)
-        let r1left = rect1.x - rect1.width / 2;
-        let r1right = rect1.x + rect1.width / 2;
-        let r1top = rect1.y - rect1.height / 2;
-        let r1bottom = rect1.y + rect1.height / 2;
-
-        let r2left = rect2_platform.x;
-        let r2right = rect2_platform.x + rect2_platform.width;
-        let r2top = rect2_platform.y;
-        let r2bottom = rect2_platform.y + rect2_platform.height;
-
-        // Check for overlap
-        return (r1right > r2left && r1left < r2right &&
-                r1bottom > r2top && r1top < r2bottom);
+      function isColliding(a, b) {
+        let l1 = a.x - a.width / 2,
+          r1 = a.x + a.width / 2,
+          t1 = a.y - a.height / 2,
+          bot1 = a.y + a.height / 2;
+        let l2 = b.x,
+          r2 = b.x + b.width,
+          t2 = b.y,
+          bot2 = b.y + b.height;
+        return r1 > l2 && l1 < r2 && bot1 > t2 && t1 < bot2;
       }
 
-      // --- Camera Logic ---
       function updateCamera() {
-        // Target camera X to keep player roughly in the first third of the screen
-        let targetCameraX = player.x - width / 3;
-
-        // Smoothly interpolate camera position towards target
-        cameraX = lerp(cameraX, targetCameraX, 0.1);
-
-        // Clamp camera to level boundaries
-        if (cameraX < 0) {
-          cameraX = 0;
-        }
-        if (cameraX > levelWidth - width) {
-          cameraX = levelWidth - width;
-        }
-         // If level is shorter than canvas, cameraX should be 0
-        if (levelWidth <= width) {
-          cameraX = 0;
-        }
+        let target = player.x - width / 3;
+        cameraX = lerp(cameraX, target, 0.1);
+        cameraX = constrain(cameraX, 0, max(levelWidth - width, 0));
       }
 
-      // --- Game State Checks ---
       function checkFallen() {
-        if (player.y - player.height / 2 > height) { // Player fell off bottom
-          gameState = "gameOver";
-        }
+        if (player.y - player.height / 2 > height + player.height) gameState = "gameOver";
       }
-
       function checkGoal() {
-        // Check if player overlaps with goal object
-        if (isColliding(player, {x: goal.x, y: goal.y, width: goal.width, height: goal.height})) {
-          gameState = "win";
-        }
+        if (isColliding(player, goal)) gameState = "win";
       }
 
-      // --- Input Handlers ---
       function keyPressed() {
         if (gameState === "playing") {
-          if (keyCode === UP_ARROW || keyCode === 87 || keyCode === 32) { // 'W', Space
-            playerJump();
-          }
-        } else { // "start", "gameOver", "win"
-          if (keyCode === 32) { // Space bar
-            initializeGame();
-            gameState = "playing";
-          }
-        }
-      }
-
-      function mousePressed() { // Also handles touch on mobile
-        if (gameState === "playing") {
-          playerJump();
-        } else { // "start", "gameOver", "win"
+          if ([UP_ARROW, 87, 32].includes(keyCode)) playerJump();
+        } else if (keyCode === 32) {
           initializeGame();
           gameState = "playing";
         }
       }
 
-      // Optional: Prevent default touch behavior like scrolling or zooming on mobile
+      function mousePressed() {
+        if (gameState === "playing") playerJump();
+        else {
+          initializeGame();
+          gameState = "playing";
+        }
+      }
+
       function touchStarted() {
-          if (gameState === "playing" || gameState === "start" || gameState === "gameOver" || gameState === "win") {
-               // mousePressed() will handle game logic for tap
-               return false; // Prevents default browser actions
-          }
+        // mirror mousePressed logic:
+        if (gameState === "playing") {
+          playerJump();
+        } else {
+          initializeGame();
+          gameState = "playing";
+        }
+        // prevent browser from also doing its default touch behavior
+        return false;
       }
-      function touchMoved() {
-          return false; // Prevents dragging/scrolling screen
-      }
-
-      // function windowResized() {
-      //    // If you want truly responsive canvas (not fixed 500x800)
-      //    // resizeCanvas(windowWidth, windowHeight);
-      //    // You'd also need to adjust game elements based on new size
-      // }
-
-  </script>
-</body>
-</html>  </body>
+    </script>
+  </body>
 </html>
