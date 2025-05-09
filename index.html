@@ -7,7 +7,7 @@
     <title>Platformer Game</title>
     <!-- p5.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
-    <!-- Farcade SDK (if needed) -->
+    <!-- Farcade SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@farcade/game-sdk@latest/dist/index.min.js"></script>
     <style>
       html,
@@ -41,63 +41,58 @@
         -webkit-user-select: none;
         -ms-touch-action: none;
       }
+
+      .p5_loading {
+        display: none !important;
+      }
     </style>
   </head>
   <body>
     <div class="game-container" id="game-container"></div>
     <script>
+      // — Farcade SDK event handlers —
+      if (window.FarcadeSDK) {
+        window.FarcadeSDK.on("play_again", () => {
+          initializeGame();
+          gameState = "playing";
+        });
+        window.FarcadeSDK.on("toggle_mute", ({ isMuted }) => {
+          setMuted && setMuted(isMuted);
+        });
+      }
+
       // — CONFIGURATION —
-      const LEVEL_LENGTH = 10000; // total world width
+      const LEVEL_LENGTH = 10000;
       const MIN_PLAT_WIDTH = 100;
       const MAX_PLAT_WIDTH = 200;
       const MIN_GAP = 100;
       const MAX_GAP = 250;
-      const DIFFICULTY_SCALE = 5; // chunks over which difficulty ramps
+      const DIFFICULTY_SCALE = 5;
 
-      // — PLAYER CAPABILITIES —
       const PLAYER_MAX_JUMP_DIST = 300;
       const PLAYER_MAX_JUMP_HEIGHT = 170;
 
-      // — NOGGLE TUNING —
-      const NOGGLE_MAX_DISTANCE = 300; // max pull‑back distance
-      const NOGGLE_MAX_SPEED = 20; // max speed at full pull
-      const NOGGLE_GRAVITY = 0.45; // gravity applied to noggles
+      const NOGGLE_MAX_DISTANCE = 300;
+      const NOGGLE_MAX_SPEED = 20;
+      const NOGGLE_GRAVITY = 0.45;
 
-      // — PALETTES —
       const brightPalettes = {
         "Deep Fried": ["#B9185C", "#D22209", "#C16710", "#D08B11", "#FFE939"],
         "User Gnome": ["#FF1A0B", "#EC5B43", "#FFA21E", "#00A556", "#068940"],
         "Noun 1": ["#D26451", "#F78A18", "#FFC110", "#FF638D", "#CC0595"],
-        "Berries & Bubble Gum": ["#834398", "#FF638D", "#FB4694", "#E9265C", "#FF1AD2"],
         "Bold & Bright": ["#F20422", "#FF1AD2", "#FFC110", "#1929F4", "#00FCFF"],
-        "Burger Joint": ["#D9391F", "#FF7216", "#F20422", "#FFE939", "#FFB913"],
-        Bricks: ["#FFC110", "#EAB118", "#00A556", "#F20422", "#1929F4"],
-        "Bold and Vibrant": ["#FF500C", "#9F21A0", "#34AC80", "#FF638D", "#F3322C"],
-        Energetic: ["#254EFB", "#F938D8", "#FFEF16", "#FF3A0E", "#D32A09"],
-        Playful: ["#FF1AD2", "#FF3A0E", "#FFAE1A", "#2A86FD", "#34AC80"],
-        Peyote: ["#27A463", "#018146", "#FDF008", "#FDCEF2", "#F681E6"],
       };
       const dullPalettes = {
-        Lumber: ["#6B3F39", "#5A423F", "#7D635E", "#6B3F39", "#D0AEA9"],
         "Cozy Cotton": ["#F9E8DD", "#F9F4E6", "#D7D3CD", "#CFC2AB", "#CBC1BC"],
         "Muted Shades": ["#757576", "#58565C", "#5D6061", "#1F1D29", "#343235"],
-        Natural: ["#C5B9A1", "#8F785E", "#9D8E6E", "#CFC2AB", "#9F4B27"],
-        "New House": ["#5A423F", "#6E3206", "#7E5243", "#85634F", "#6B3F39"],
-        "Subtle Shift": ["#CBC1BC", "#E1D7D5", "#D7D3CD", "#CFC2AB", "#C5B9A1"],
-        "Classic UX": ["#343235", "#D7D3CD", "#E5E5DE", "#D8DADF", "#B8CED2"],
-        "Light Blend": ["#D5D7E1", "#FDF8FF", "#E5E5DE", "#E1D7D5", "#CFC2AB"],
       };
 
-      // — THING BOBBING & SIZE —
-      const THING_BASE_SIZE = 96; // increased size
-      const THING_BOB_AMPLITUDE = 10; // pixels up/down
-      const THING_BOB_SPEED = 0.05; // speed factor
+      const THING_BASE_SIZE = 96;
+      const THING_BOB_AMPLITUDE = 10;
+      const THING_BOB_SPEED = 0.05;
 
-      // — PARALLAX CLOUDS —
       let cloudImg,
         clouds = [];
-
-      // — STATE —
       let joystick = { x: 0, y: 0, outer: 60, inner: 30, activeRadius: 150 };
       let jumpBtn = { x: 0, y: 0, r: 80 };
       let cameraX = 0,
@@ -115,7 +110,6 @@
         loadedThingGrayImgs = [];
       let coyoteTimer = 0,
         jumpBufferTimer = 0;
-
       const thingImageURLs = [
         "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/head-bell-cyoz9Bcp7HxOcemvRfLeI1yApn0BhT.png",
         "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/head-beet-RuAHn1SsM80FKaYDMfydcju89SgCMG.png",
@@ -124,7 +118,6 @@
         "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/head-basketball-l64KVTs1jtd0u57ow7uxFrwbBRvQoX.png",
       ];
 
-      // — ANIMATION —
       const FRAME_WIDTH = 48,
         FRAME_HEIGHT = 48;
       const ANIMATION_DEFS = {
@@ -162,7 +155,7 @@
         imageMode(CENTER);
         colorMode(RGB, 255);
 
-        // build grayscale copies
+        // build greyscale copies
         loadedThingImgs.forEach((img) => {
           let g = createGraphics(img.width, img.height);
           g.image(img, 0, 0);
@@ -177,24 +170,25 @@
         joystick.y = height - 80;
         jumpBtn.x = width - 80;
         jumpBtn.y = height - 80;
+
+        // signal to Farcade that we're ready
+        if (window.FarcadeSDK?.singlePlayer) {
+          window.FarcadeSDK.singlePlayer.actions.ready();
+        }
       }
 
       function initializeGame() {
         randomSeed(millis());
-
-        // choose palettes
         let dullKeys = Object.keys(dullPalettes),
           brightKeys = Object.keys(brightPalettes);
         activeDullPalette = dullPalettes[dullKeys[floor(random(dullKeys.length))]];
         activeBrightPalette = brightPalettes[brightKeys[floor(random(brightKeys.length))]];
 
-        // reset state
         noggles.length = 0;
         score = 0;
         coyoteTimer = 0;
         jumpBufferTimer = 0;
 
-        // player
         player = {
           x: 100,
           y: height - 100,
@@ -207,28 +201,20 @@
           animation: { currentSet: "idle", facingDirection: 1, frameIndex: 0, tick: 0 },
         };
 
-        // static first platform
         platforms = [
-          {
-            x: 0,
-            y: height - 50,
-            w: 400,
-            h: 50,
-            color: activeDullPalette[floor(random(activeDullPalette.length))],
-          },
+          { x: 0, y: height - 50, w: 400, h: 50, color: activeDullPalette[floor(random(activeDullPalette.length))] },
         ];
 
-        // procedural platforms
         let xPos = 400,
           prevY = height - 50,
           chunkIdx = 0;
         while (xPos < LEVEL_LENGTH) {
-          let d = min(chunkIdx / DIFFICULTY_SCALE, 1);
-          let gap = lerp(MIN_GAP, MAX_GAP, d);
+          let d = min(chunkIdx / DIFFICULTY_SCALE, 1),
+            gap = lerp(MIN_GAP, MAX_GAP, d);
           xPos += random(gap * 0.8, gap * 1.2);
-          let platW = random(MIN_PLAT_WIDTH, lerp(MAX_PLAT_WIDTH, MIN_PLAT_WIDTH, d));
-          let vertRange = lerp(PLAYER_MAX_JUMP_HEIGHT * 0.5, PLAYER_MAX_JUMP_HEIGHT, d);
-          let newY = constrain(prevY + random(-vertRange, vertRange), 100, height - 150);
+          let platW = random(MIN_PLAT_WIDTH, lerp(MAX_PLAT_WIDTH, MIN_PLAT_WIDTH, d)),
+            vertRange = lerp(PLAYER_MAX_JUMP_HEIGHT * 0.5, PLAYER_MAX_JUMP_HEIGHT, d),
+            newY = constrain(prevY + random(-vertRange, vertRange), 100, height - 150);
           platforms.push({
             x: xPos,
             y: newY,
@@ -242,7 +228,6 @@
         }
         levelWidth = xPos + 500;
 
-        // goal
         goal = {
           x: levelWidth - 200,
           y: random(height / 2, height - 200),
@@ -251,15 +236,14 @@
           color: activeBrightPalette[floor(random(activeBrightPalette.length))],
         };
 
-        // spawn things near top of viewport, clamped above their platform
         let topOfViewport = player.y - height / 2;
         things = platforms
           .filter((_, i) => i % 3 === 0)
           .map((p, i) => {
-            let tx = random(p.x + 10, p.x + p.w - 10);
-            let rawY = topOfViewport + random(50, 150);
-            let maxY = p.y - THING_BASE_SIZE / 2 - 5;
-            let ty = min(rawY, maxY);
+            let tx = random(p.x + 10, p.x + p.w - 10),
+              rawY = topOfViewport + random(50, 150),
+              maxY = p.y - THING_BASE_SIZE / 2 - 5,
+              ty = min(rawY, maxY);
             return {
               x: tx,
               y: ty,
@@ -271,7 +255,6 @@
             };
           });
 
-        // clouds
         clouds = Array.from({ length: 20 }, () => ({
           x: random(0, levelWidth),
           y: random(50, height / 2),
@@ -292,8 +275,13 @@
           drawUI();
         } else {
           drawGameScene();
-          if (gameState === "gameOver") displayGameOverScreen();
-          else displayWinScreen();
+          if (gameState === "gameOver") {
+            displayGameOverScreen();
+            if (window.FarcadeSDK?.singlePlayer) window.FarcadeSDK.singlePlayer.actions.gameOver({ score });
+          } else {
+            displayWinScreen();
+            if (window.FarcadeSDK?.singlePlayer) window.FarcadeSDK.singlePlayer.actions.gameOver({ score });
+          }
         }
       }
 
@@ -311,8 +299,7 @@
 
       function updateCamera() {
         let tx = player.x - width / 3;
-        cameraX = lerp(cameraX, tx, 0.1);
-        cameraX = constrain(cameraX, 0, max(levelWidth - width, 0));
+        cameraX = constrain(lerp(cameraX, tx, 0.1), 0, max(levelWidth - width, 0));
         let dy = player.y - height / 2;
         cameraY = min(dy, initialCameraY);
       }
@@ -385,6 +372,7 @@
           for (let p of platforms) {
             if (n.x > p.x && n.x < p.x + p.w && n.y > p.y && n.y < p.y + p.h) {
               p.color = activeBrightPalette[floor(random(activeBrightPalette.length))];
+              if (window.FarcadeSDK?.singlePlayer) window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
               noggles.splice(i, 1);
               break;
             }
@@ -400,6 +388,7 @@
             ) {
               t.collected = true;
               score += 10;
+              if (window.FarcadeSDK?.singlePlayer) window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
               noggles.splice(i, 1);
               break;
             }
@@ -442,11 +431,11 @@
           player.isOnGround = false;
           coyoteTimer = 0;
           jumpBufferTimer = 0;
+          if (window.FarcadeSDK?.singlePlayer) window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
         }
       }
 
       function updatePlayer() {
-        // horizontal
         player.x += player.velocityX;
         platforms.forEach((p) => {
           if (isColliding(player, p)) {
@@ -455,11 +444,9 @@
             player.velocityX = 0;
           }
         });
-        // timers
         if (!player.isOnGround) coyoteTimer = max(coyoteTimer - 1, 0);
         if (jumpBufferTimer > 0) jumpBufferTimer--;
         if (player.isOnGround && jumpBufferTimer > 0) tryPerformJump();
-        // vertical
         player.velocityY += 0.5;
         player.y += player.velocityY;
         player.isOnGround = false;
@@ -515,12 +502,12 @@
         let dir = a.facingDirection === 1 ? "right" : "left";
         let m = ANIMATION_MAP[a.currentSet][dir];
         let f = a.frameIndex % ANIMATION_DEFS[a.currentSet].frames;
-        let sx = (m.startFrame + f) * FRAME_WIDTH;
-        let sy = m.row * FRAME_HEIGHT;
-        let dw = FRAME_WIDTH * 3;
-        let dh = FRAME_HEIGHT * 3;
-        let yoff = (dh - player.height) / 2;
-        let dy = player.y - yoff;
+        let sx = (m.startFrame + f) * FRAME_WIDTH,
+          sy = m.row * FRAME_HEIGHT;
+        let dw = FRAME_WIDTH * 3,
+          dh = FRAME_HEIGHT * 3;
+        let yoff = (dh - player.height) / 2,
+          dy = player.y - yoff;
         push();
         image(player.spriteSheet, player.x, dy, dw, dh, sx, sy, FRAME_WIDTH, FRAME_HEIGHT);
         pop();
@@ -595,11 +582,15 @@
       }
 
       function checkGoal() {
-        if (isColliding(player, goal)) gameState = "win";
+        if (isColliding(player, goal)) {
+          gameState = "win";
+        }
       }
 
       function checkFallen() {
-        if (player.y - player.height / 2 > cameraY + height * 2) gameState = "gameOver";
+        if (player.y - player.height / 2 > cameraY + height * 2) {
+          gameState = "gameOver";
+        }
       }
 
       function keyPressed() {
@@ -672,6 +663,11 @@
           gameState = "playing";
           return false;
         }
+      }
+
+      // Optional helper to mute/unmute your audio
+      function setMuted(isMuted) {
+        // implement audio pausing/resuming here
       }
     </script>
   </body>
