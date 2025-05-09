@@ -48,7 +48,6 @@
     <script>
       // — CONFIGURATION —
       const LEVEL_LENGTH = 10000; // total world width
-      const CHUNK_WIDTH = 500; // not used directly but conceptual
       const MIN_PLAT_WIDTH = 100;
       const MAX_PLAT_WIDTH = 200;
       const MIN_GAP = 100;
@@ -111,12 +110,12 @@
         goal,
         levelWidth,
         gameState;
-      let nounSpriteSheet,
-        noggleImg,
-        loadedThingImgs = [],
+      let player, nounSpriteSheet, noggleImg;
+      let loadedThingImgs = [],
         loadedThingGrayImgs = [];
       let coyoteTimer = 0,
         jumpBufferTimer = 0;
+
       const thingImageURLs = [
         "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/head-bell-cyoz9Bcp7HxOcemvRfLeI1yApn0BhT.png",
         "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/head-beet-RuAHn1SsM80FKaYDMfydcju89SgCMG.png",
@@ -182,13 +181,14 @@
 
       function initializeGame() {
         randomSeed(millis());
+
         // choose palettes
         let dullKeys = Object.keys(dullPalettes),
           brightKeys = Object.keys(brightPalettes);
         activeDullPalette = dullPalettes[dullKeys[floor(random(dullKeys.length))]];
         activeBrightPalette = brightPalettes[brightKeys[floor(random(brightKeys.length))]];
 
-        // reset
+        // reset state
         noggles.length = 0;
         score = 0;
         coyoteTimer = 0;
@@ -251,13 +251,15 @@
           color: activeBrightPalette[floor(random(activeBrightPalette.length))],
         };
 
-        // spawn things near top of viewport
+        // spawn things near top of viewport, clamped above their platform
         let topOfViewport = player.y - height / 2;
         things = platforms
           .filter((_, i) => i % 3 === 0)
           .map((p, i) => {
             let tx = random(p.x + 10, p.x + p.w - 10);
-            let ty = topOfViewport + random(50, 150);
+            let rawY = topOfViewport + random(50, 150);
+            let maxY = p.y - THING_BASE_SIZE / 2 - 5;
+            let ty = min(rawY, maxY);
             return {
               x: tx,
               y: ty,
