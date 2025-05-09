@@ -47,22 +47,22 @@
     <div class="game-container" id="game-container"></div>
     <script>
       // — CONFIGURATION —
-      const LEVEL_LENGTH = 10000;
-      const CHUNK_WIDTH = 500;
+      const LEVEL_LENGTH = 10000; // total world width
+      const CHUNK_WIDTH = 500; // not used directly but conceptual
       const MIN_PLAT_WIDTH = 100;
       const MAX_PLAT_WIDTH = 200;
       const MIN_GAP = 100;
       const MAX_GAP = 250;
-      const DIFFICULTY_SCALE = 5;
+      const DIFFICULTY_SCALE = 5; // chunks over which difficulty ramps
 
       // — PLAYER CAPABILITIES —
       const PLAYER_MAX_JUMP_DIST = 300;
       const PLAYER_MAX_JUMP_HEIGHT = 170;
 
       // — NOGGLE TUNING —
-      const NOGGLE_MAX_DISTANCE = 300;
-      const NOGGLE_MAX_SPEED = 20;
-      const NOGGLE_GRAVITY = 0.45;
+      const NOGGLE_MAX_DISTANCE = 300; // max pull‑back distance
+      const NOGGLE_MAX_SPEED = 20; // max speed at full pull
+      const NOGGLE_GRAVITY = 0.45; // gravity applied to noggles
 
       // — PALETTES —
       const brightPalettes = {
@@ -88,7 +88,11 @@
         "Classic UX": ["#343235", "#D7D3CD", "#E5E5DE", "#D8DADF", "#B8CED2"],
         "Light Blend": ["#D5D7E1", "#FDF8FF", "#E5E5DE", "#E1D7D5", "#CFC2AB"],
       };
-      let activeBrightPalette, activeDullPalette;
+
+      // — THING BOBBING & SIZE —
+      const THING_BASE_SIZE = 96; // increased size
+      const THING_BOB_AMPLITUDE = 10; // pixels up/down
+      const THING_BOB_SPEED = 0.05; // speed factor
 
       // — PARALLAX CLOUDS —
       let cloudImg,
@@ -178,14 +182,13 @@
 
       function initializeGame() {
         randomSeed(millis());
-
         // choose palettes
         let dullKeys = Object.keys(dullPalettes),
           brightKeys = Object.keys(brightPalettes);
         activeDullPalette = dullPalettes[dullKeys[floor(random(dullKeys.length))]];
         activeBrightPalette = brightPalettes[brightKeys[floor(random(brightKeys.length))]];
 
-        // reset state
+        // reset
         noggles.length = 0;
         score = 0;
         coyoteTimer = 0;
@@ -258,7 +261,8 @@
             return {
               x: tx,
               y: ty,
-              size: 64,
+              size: THING_BASE_SIZE,
+              phase: random(TWO_PI),
               img: loadedThingImgs[i % loadedThingImgs.length],
               gray: loadedThingGrayImgs[i % loadedThingGrayImgs.length],
               collected: false,
@@ -345,7 +349,8 @@
       function drawThings() {
         imageMode(CENTER);
         things.forEach((t) => {
-          image(t.collected ? t.img : t.gray, t.x, t.y, t.size, t.size);
+          let bob = sin(frameCount * THING_BOB_SPEED + t.phase) * THING_BOB_AMPLITUDE;
+          image(t.collected ? t.img : t.gray, t.x, t.y + bob, t.size, t.size);
         });
       }
 
@@ -504,16 +509,16 @@
           pop();
           return;
         }
-        let a = player.animation,
-          dir = a.facingDirection === 1 ? "right" : "left",
-          m = ANIMATION_MAP[a.currentSet][dir],
-          f = a.frameIndex % ANIMATION_DEFS[a.currentSet].frames,
-          sx = (m.startFrame + f) * FRAME_WIDTH,
-          sy = m.row * FRAME_HEIGHT,
-          dw = FRAME_WIDTH * 3,
-          dh = FRAME_HEIGHT * 3,
-          yoff = (dh - player.height) / 2,
-          dy = player.y - yoff;
+        let a = player.animation;
+        let dir = a.facingDirection === 1 ? "right" : "left";
+        let m = ANIMATION_MAP[a.currentSet][dir];
+        let f = a.frameIndex % ANIMATION_DEFS[a.currentSet].frames;
+        let sx = (m.startFrame + f) * FRAME_WIDTH;
+        let sy = m.row * FRAME_HEIGHT;
+        let dw = FRAME_WIDTH * 3;
+        let dh = FRAME_HEIGHT * 3;
+        let yoff = (dh - player.height) / 2;
+        let dy = player.y - yoff;
         push();
         image(player.spriteSheet, player.x, dy, dw, dh, sx, sy, FRAME_WIDTH, FRAME_HEIGHT);
         pop();
@@ -548,12 +553,12 @@
 
       function isColliding(a, b) {
         let l1 = a.x - a.width / 2,
-          r1 = a.x + a.width / 2,
-          t1 = a.y - a.height / 2,
+          r1 = a.x + a.width / 2;
+        let t1 = a.y - a.height / 2,
           bot1 = a.y + a.height / 2;
         let l2 = b.x,
-          r2 = b.x + b.w,
-          t2 = b.y,
+          r2 = b.x + b.w;
+        let t2 = b.y,
           bot2 = b.y + b.h;
         return r1 > l2 && l1 < r2 && bot1 > t2 && t1 < bot2;
       }
