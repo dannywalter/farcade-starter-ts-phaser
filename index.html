@@ -41,7 +41,6 @@
         -webkit-user-select: none;
         -ms-touch-action: none;
       }
-
       .p5_loading {
         display: none !important;
       }
@@ -62,16 +61,14 @@
       }
 
       // — CONFIGURATION —
-      const LEVEL_LENGTH = 10000;
-      const MIN_PLAT_WIDTH = 100;
-      const MAX_PLAT_WIDTH = 200;
+      const LEVEL_LENGTH = 100000;
+      const MIN_PLAT_WIDTH = 150;
+      const MAX_PLAT_WIDTH = 300;
       const MIN_GAP = 100;
-      const MAX_GAP = 250;
+      const MAX_GAP = 245;
       const DIFFICULTY_SCALE = 5;
-
-      const PLAYER_MAX_JUMP_DIST = 300;
-      const PLAYER_MAX_JUMP_HEIGHT = 170;
-
+      const PLAYER_MAX_JUMP_DIST = 320;
+      const PLAYER_MAX_JUMP_HEIGHT = 180;
       const NOGGLE_MAX_DISTANCE = 300;
       const NOGGLE_MAX_SPEED = 20;
       const NOGGLE_GRAVITY = 0.45;
@@ -87,37 +84,17 @@
         "Muted Shades": ["#757576", "#58565C", "#5D6061", "#1F1D29", "#343235"],
       };
 
-      const THING_BASE_SIZE = 96;
+      const THING_BASE_SIZE = 120;
       const THING_BOB_AMPLITUDE = 10;
       const THING_BOB_SPEED = 0.05;
 
-      let cloudImg,
-        clouds = [];
-      let joystick = { x: 0, y: 0, outer: 60, inner: 30, activeRadius: 150 };
-      let jumpBtn = { x: 0, y: 0, r: 80 };
-      let cameraX = 0,
-        cameraY = 0,
-        initialCameraY = 0;
-      let noggles = [],
-        things = [],
-        score = 0;
-      let platforms = [],
-        goal,
-        levelWidth,
-        gameState;
-      let player, nounSpriteSheet, noggleImg;
-      let loadedThingImgs = [],
-        loadedThingGrayImgs = [];
-      let coyoteTimer = 0,
-        jumpBufferTimer = 0;
-      const thingImageURLs = [
-        "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/head-bell-cyoz9Bcp7HxOcemvRfLeI1yApn0BhT.png",
-        "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/head-beet-RuAHn1SsM80FKaYDMfydcju89SgCMG.png",
-        "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/head-beer-HJBTuSWKtT2s88THUB3hfJFHyZaNDJ.png",
-        "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/head-blackhole-1TQp8Ywy1QF9wYZVc4iCgRaSTfgvdW.png",
-        "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/head-basketball-l64KVTs1jtd0u57ow7uxFrwbBRvQoX.png",
-      ];
+      // sprite‑sheet setup
+      const SPRITE_SHEET_URL =
+        "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/spritesheet_01-013XKHgXmv0XWoCyGHLamCEVdy6Kla.png";
+      const THING_FRAME_SIZE = 64;
+      const TOTAL_THING_FRAMES = 20;
 
+      // animation constants
       const FRAME_WIDTH = 48,
         FRAME_HEIGHT = 48;
       const ANIMATION_DEFS = {
@@ -133,6 +110,29 @@
         fall: { right: { row: 0, startFrame: 8 }, left: { row: 2, startFrame: 8 } },
       };
 
+      // — STATE —
+      let cloudImg,
+        clouds = [];
+      let joystick = { x: 0, y: 0, outer: 60, inner: 30, activeRadius: 150 };
+      let jumpBtn = { x: 0, y: 0, r: 80 };
+      let cameraX = 0,
+        cameraY = 0,
+        initialCameraY = 0;
+      let noggles = [],
+        things = [],
+        score = 0;
+      let platforms = [],
+        goal,
+        levelWidth,
+        gameState;
+      let player, nounSpriteSheet, noggleImg, thingSpriteSheet;
+      let loadedThingImgs = [],
+        loadedThingGrayImgs = [];
+      let coyoteTimer = 0,
+        jumpBufferTimer = 0;
+
+      let titleBg;
+
       function preload() {
         nounSpriteSheet = loadImage(
           "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/myNounsSpritesheet_003-ymLtEkBrlNZMQkj37npozrPDdamMbF.png",
@@ -143,7 +143,10 @@
         cloudImg = loadImage(
           "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/head-cloud-i9zXsgKYOqRd5S0VjKaziZYVDtZbmf.png",
         );
-        thingImageURLs.forEach((url) => loadedThingImgs.push(loadImage(url)));
+        thingSpriteSheet = loadImage(SPRITE_SHEET_URL);
+        titleBg = loadImage(
+          "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/nounifyTheWorldTitle_1-0Wbv9O9w8f1mM12NI9CssOfFIRXlKt.png",
+        );
       }
 
       function setup() {
@@ -155,9 +158,14 @@
         imageMode(CENTER);
         colorMode(RGB, 255);
 
-        // build greyscale copies
+        // split the sprite sheet into 20 individual frames
+        for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
+          let frame = thingSpriteSheet.get(i * THING_FRAME_SIZE, 0, THING_FRAME_SIZE, THING_FRAME_SIZE);
+          loadedThingImgs.push(frame);
+        }
+        // generate grayscale copies
         loadedThingImgs.forEach((img) => {
-          let g = createGraphics(img.width, img.height);
+          let g = createGraphics(THING_FRAME_SIZE, THING_FRAME_SIZE);
           g.image(img, 0, 0);
           g.filter(GRAY);
           loadedThingGrayImgs.push(g.get());
@@ -171,7 +179,6 @@
         jumpBtn.x = width - 80;
         jumpBtn.y = height - 80;
 
-        // signal to Farcade that we're ready
         if (window.FarcadeSDK?.singlePlayer) {
           window.FarcadeSDK.singlePlayer.actions.ready();
         }
@@ -179,12 +186,12 @@
 
       function initializeGame() {
         randomSeed(millis());
-        let dullKeys = Object.keys(dullPalettes),
+        const dullKeys = Object.keys(dullPalettes),
           brightKeys = Object.keys(brightPalettes);
         activeDullPalette = dullPalettes[dullKeys[floor(random(dullKeys.length))]];
         activeBrightPalette = brightPalettes[brightKeys[floor(random(brightKeys.length))]];
 
-        noggles.length = 0;
+        noggles = [];
         score = 0;
         coyoteTimer = 0;
         jumpBufferTimer = 0;
@@ -236,21 +243,26 @@
           color: activeBrightPalette[floor(random(activeBrightPalette.length))],
         };
 
-        let topOfViewport = player.y - height / 2;
+        const topOfViewport = player.y - height / 2;
         things = platforms
           .filter((_, i) => i % 3 === 0)
-          .map((p, i) => {
-            let tx = random(p.x + 10, p.x + p.w - 10),
-              rawY = topOfViewport + random(50, 150),
-              maxY = p.y - THING_BASE_SIZE / 2 - 5,
-              ty = min(rawY, maxY);
+          .map((p) => {
+            // compute spawn x/y exactly as before
+            const tx = random(p.x + 10, p.x + p.w - 10);
+            const rawY = topOfViewport + random(50, 150);
+            const maxY = p.y - THING_BASE_SIZE / 2 - 5;
+            const ty = min(rawY, maxY);
+
+            // pick a random frame index
+            const idx = floor(random(loadedThingImgs.length));
+
             return {
               x: tx,
               y: ty,
               size: THING_BASE_SIZE,
               phase: random(TWO_PI),
-              img: loadedThingImgs[i % loadedThingImgs.length],
-              gray: loadedThingGrayImgs[i % loadedThingGrayImgs.length],
+              img: loadedThingImgs[idx],
+              gray: loadedThingGrayImgs[idx],
               collected: false,
             };
           });
@@ -268,19 +280,17 @@
       function draw() {
         background("#63A0F9");
         drawClouds();
+
         if (gameState === "start") {
           displayStartScreen();
         } else if (gameState === "playing") {
           runGame();
           drawUI();
         } else {
+          // either "gameOver" or "win"
           drawGameScene();
-          if (gameState === "gameOver") {
-            displayGameOverScreen();
-            if (window.FarcadeSDK?.singlePlayer) window.FarcadeSDK.singlePlayer.actions.gameOver({ score });
-          } else {
-            displayWinScreen();
-            if (window.FarcadeSDK?.singlePlayer) window.FarcadeSDK.singlePlayer.actions.gameOver({ score });
+          if (window.FarcadeSDK?.singlePlayer) {
+            window.FarcadeSDK.singlePlayer.actions.gameOver({ score });
           }
         }
       }
@@ -298,9 +308,9 @@
       }
 
       function updateCamera() {
-        let tx = player.x - width / 3;
+        const tx = player.x - width / 3;
         cameraX = constrain(lerp(cameraX, tx, 0.1), 0, max(levelWidth - width, 0));
-        let dy = player.y - height / 2;
+        const dy = player.y - height / 2;
         cameraY = min(dy, initialCameraY);
       }
 
@@ -319,7 +329,7 @@
         imageMode(CENTER);
         noTint();
         clouds.forEach((c) => {
-          let sx = c.x - cameraX * c.speedFactor;
+          const sx = c.x - cameraX * c.speedFactor;
           image(cloudImg, sx, c.y, cloudImg.width * c.size, cloudImg.height * c.size);
         });
       }
@@ -338,7 +348,7 @@
       function drawThings() {
         imageMode(CENTER);
         things.forEach((t) => {
-          let bob = sin(frameCount * THING_BOB_SPEED + t.phase) * THING_BOB_AMPLITUDE;
+          const bob = sin(frameCount * THING_BOB_SPEED + t.phase) * THING_BOB_AMPLITUDE;
           image(t.collected ? t.img : t.gray, t.x, t.y + bob, t.size, t.size);
         });
       }
@@ -355,7 +365,7 @@
           push();
           translate(n.x, n.y);
           rotate(n.angle);
-          let sz = n.r * 10;
+          const sz = n.r * 10;
           image(noggleImg, 0, 0, sz, sz);
           pop();
         });
@@ -363,22 +373,24 @@
 
       function updateNoggles() {
         for (let i = noggles.length - 1; i >= 0; i--) {
-          let n = noggles[i];
+          const n = noggles[i];
           n.vy += NOGGLE_GRAVITY;
           n.x += n.vx;
           n.y += n.vy;
           n.angle += n.angularVelocity;
           // platform collision
-          for (let p of platforms) {
+          for (const p of platforms) {
             if (n.x > p.x && n.x < p.x + p.w && n.y > p.y && n.y < p.y + p.h) {
               p.color = activeBrightPalette[floor(random(activeBrightPalette.length))];
-              if (window.FarcadeSDK?.singlePlayer) window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
+              if (window.FarcadeSDK?.singlePlayer) {
+                window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
+              }
               noggles.splice(i, 1);
               break;
             }
           }
-          // noun collision
-          for (let t of things) {
+          // thing collision
+          for (const t of things) {
             if (
               !t.collected &&
               n.x > t.x - t.size / 2 &&
@@ -388,13 +400,17 @@
             ) {
               t.collected = true;
               score += 10;
-              if (window.FarcadeSDK?.singlePlayer) window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
+              if (window.FarcadeSDK?.singlePlayer) {
+                window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
+              }
               noggles.splice(i, 1);
               break;
             }
           }
           // out of bounds
-          if (n.y > cameraY + height * 2) noggles.splice(i, 1);
+          if (n.y > cameraY + height * 2) {
+            noggles.splice(i, 1);
+          }
         }
       }
 
@@ -408,15 +424,15 @@
           player.velocityX = 5;
           player.animation.facingDirection = 1;
         }
-        for (let t of touches) {
+        for (const t of touches) {
           if (dist(t.x, t.y, joystick.x, joystick.y) < joystick.activeRadius) {
-            let dx = constrain(t.x - joystick.x, -(joystick.outer - joystick.inner), joystick.outer - joystick.inner);
+            const dx = constrain(t.x - joystick.x, -(joystick.outer - joystick.inner), joystick.outer - joystick.inner);
             player.velocityX = dx > 0 ? 5 : -5;
             player.animation.facingDirection = dx > 0 ? 1 : -1;
             break;
           }
         }
-        for (let t of touches) {
+        for (const t of touches) {
           if (dist(t.x, t.y, jumpBtn.x, jumpBtn.y) < jumpBtn.r) {
             jumpBufferTimer = 6;
             tryPerformJump();
@@ -431,7 +447,9 @@
           player.isOnGround = false;
           coyoteTimer = 0;
           jumpBufferTimer = 0;
-          if (window.FarcadeSDK?.singlePlayer) window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
+          if (window.FarcadeSDK?.singlePlayer) {
+            window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
+          }
         }
       }
 
@@ -452,7 +470,7 @@
         player.isOnGround = false;
         platforms.forEach((p) => {
           if (isColliding(player, p)) {
-            let prevBot = player.y - player.velocityY + player.height / 2;
+            const prevBot = player.y - player.velocityY + player.height / 2;
             if (player.velocityY > 0 && prevBot <= p.y + 1) {
               player.y = p.y - player.height / 2;
               player.velocityY = 0;
@@ -465,27 +483,25 @@
       }
 
       function updatePlayerAnimationState() {
-        let a = player.animation,
-          set = a.currentSet;
+        let set = player.animation.currentSet;
         if (player.velocityY < -0.1 && !player.isOnGround) set = "jump";
         else if (player.velocityY > 0.1 && !player.isOnGround) set = "fall";
         else if (player.isOnGround && abs(player.velocityX) > 0.1) set = "walk";
         else if (player.isOnGround) set = "idle";
-        if (set !== a.currentSet) {
-          a.currentSet = set;
-          a.frameIndex = 0;
-          a.tick = 0;
+        if (set !== player.animation.currentSet) {
+          player.animation.currentSet = set;
+          player.animation.frameIndex = 0;
+          player.animation.tick = 0;
         }
       }
 
       function advancePlayerFrame() {
-        let a = player.animation,
-          d = ANIMATION_DEFS[a.currentSet];
-        if (!d) return;
-        a.tick++;
-        if (a.tick >= d.speed) {
-          a.tick = 0;
-          a.frameIndex = (a.frameIndex + 1) % d.frames;
+        const def = ANIMATION_DEFS[player.animation.currentSet];
+        if (!def) return;
+        player.animation.tick++;
+        if (player.animation.tick >= def.speed) {
+          player.animation.tick = 0;
+          player.animation.frameIndex = (player.animation.frameIndex + 1) % def.frames;
         }
       }
 
@@ -498,18 +514,17 @@
           pop();
           return;
         }
-        let a = player.animation;
-        let dir = a.facingDirection === 1 ? "right" : "left";
-        let m = ANIMATION_MAP[a.currentSet][dir];
-        let f = a.frameIndex % ANIMATION_DEFS[a.currentSet].frames;
-        let sx = (m.startFrame + f) * FRAME_WIDTH,
-          sy = m.row * FRAME_HEIGHT;
-        let dw = FRAME_WIDTH * 3,
-          dh = FRAME_HEIGHT * 3;
-        let yoff = (dh - player.height) / 2,
-          dy = player.y - yoff;
+        const a = player.animation;
+        const dir = a.facingDirection === 1 ? "right" : "left";
+        const map = ANIMATION_MAP[a.currentSet][dir];
+        const frame = a.frameIndex % ANIMATION_DEFS[a.currentSet].frames;
+        const sx = (map.startFrame + frame) * FRAME_WIDTH;
+        const sy = map.row * FRAME_HEIGHT;
+        const dw = FRAME_WIDTH * 3;
+        const dh = FRAME_HEIGHT * 3;
+        const yoff = (dh - player.height) / 2;
         push();
-        image(player.spriteSheet, player.x, dy, dw, dh, sx, sy, FRAME_WIDTH, FRAME_HEIGHT);
+        image(player.spriteSheet, player.x, player.y - yoff, dw, dh, sx, sy, FRAME_WIDTH, FRAME_HEIGHT);
         pop();
       }
 
@@ -519,10 +534,9 @@
         strokeWeight(2);
         circle(joystick.x, joystick.y, joystick.outer * 2);
         let kx = joystick.x;
-        for (let t of touches) {
+        for (const t of touches) {
           if (dist(t.x, t.y, joystick.x, joystick.y) < joystick.activeRadius) {
-            let dx = constrain(t.x - joystick.x, -(joystick.outer - joystick.inner), joystick.outer - joystick.inner);
-            kx += dx;
+            kx += constrain(t.x - joystick.x, -(joystick.outer - joystick.inner), joystick.outer - joystick.inner);
             break;
           }
         }
@@ -537,48 +551,55 @@
         noStroke();
         fill(0, 0, 100);
         textSize(24);
-        text(`Score: ${score}`, width - 80, 40);
+        // center horizontally, align at the top
+        textAlign(CENTER, TOP);
+        text(`Score: ${score}`, width / 2, 10);
+        // (optional) if you want to restore center/center for other text later:
+        // textAlign(CENTER, CENTER);
       }
 
       function isColliding(a, b) {
-        let l1 = a.x - a.width / 2,
-          r1 = a.x + a.width / 2;
-        let t1 = a.y - a.height / 2,
-          bot1 = a.y + a.height / 2;
-        let l2 = b.x,
-          r2 = b.x + b.w;
-        let t2 = b.y,
-          bot2 = b.y + b.h;
-        return r1 > l2 && l1 < r2 && bot1 > t2 && t1 < bot2;
+        const l1 = a.x - a.width / 2,
+          r1 = a.x + a.width / 2,
+          t1 = a.y - a.height / 2,
+          b1 = a.y + a.height / 2,
+          l2 = b.x,
+          r2 = b.x + b.w,
+          t2 = b.y,
+          b2 = b.y + b.h;
+        return r1 > l2 && l1 < r2 && b1 > t2 && t1 < b2;
       }
 
       function displayStartScreen() {
-        fill(0, 0, 100);
-        textSize(32);
-        text("Noun Platformer Deluxe!", width / 2, height / 3);
-        textSize(22);
-        text("←→ or A/D: Move", width / 2, height / 2 - 30);
-        text("↑/W/Space or Tap Start", width / 2, height / 2 + 10);
-      }
+        // 1️⃣ draw the full‑canvas background image
+        push();
+        imageMode(CORNER);
+        noTint();
+        image(titleBg, 0, 0, width, height);
+        pop();
 
-      function displayGameOverScreen() {
-        fill(0, 0, 0, 60);
-        rect(0, 0, width, height);
-        fill(0, 100, 100);
-        textSize(54);
-        text("Game Over", width / 2, height / 3);
-        textSize(30);
-        text("Tap Space to Restart", width / 2, height / 2 + 40);
-      }
+        // calculate Y positions
+        const startY = height - 10; // bottom edge for “Tap to Start”
+        const throwY = startY - 50; // throw Noggles
+        const jumpY = startY - 75; // jump
+        const moveY = startY - 100; // move left/right
 
-      function displayWinScreen() {
-        fill(120, 80, 100, 60);
-        rect(0, 0, width, height);
-        fill(120, 100, 100);
-        textSize(60);
-        text("You Win!", width / 2, height / 3);
-        textSize(30);
-        text("Tap Space to Play Again", width / 2, height / 2 + 40);
+        // — Instructions just above the start prompt —
+        textFont("Roboto");
+        textSize(20);
+        fill("#000000");
+        textStyle(BOLD);
+        textAlign(CENTER, CENTER);
+        text("← → or A / D: Move", width / 2, moveY);
+        text("↑ or W: Jump", width / 2, jumpY);
+        text("Click / Tap to Throw Noggles", width / 2, throwY);
+
+        // — “Start” prompt at the very bottom —
+
+        textSize(24);
+        textAlign(CENTER, BOTTOM);
+        text("Tap or Click to Start", width / 2, startY);
+        textStyle(NORMAL);
       }
 
       function checkGoal() {
@@ -588,7 +609,20 @@
       }
 
       function checkFallen() {
+        // if player falls off bottom of screen…
         if (player.y - player.height / 2 > cameraY + height * 2) {
+          // spawn a final noggle straight up from the player's last position
+          const wsx = player.x;
+          const wsy = player.y - FRAME_HEIGHT * 1.5;
+          noggles.push({
+            x: wsx,
+            y: wsy,
+            vx: 0, // no horizontal velocity
+            vy: -NOGGLE_MAX_SPEED, // straight up at max speed
+            r: 10,
+            angle: 0,
+            angularVelocity: random(-0.2, 0.2),
+          });
           gameState = "gameOver";
         }
       }
@@ -599,13 +633,15 @@
             jumpBufferTimer = 6;
             tryPerformJump();
           }
-        } else if (keyCode === 32) {
-          initializeGame();
-          gameState = "playing";
         }
       }
 
       function mousePressed() {
+        if (gameState === "start") {
+          initializeGame();
+          gameState = "playing";
+          return;
+        }
         if (gameState === "playing") {
           if (
             dist(mouseX, mouseY, joystick.x, joystick.y) > joystick.activeRadius &&
@@ -623,15 +659,25 @@
               angle = atan2(dyRaw, dxRaw),
               dx = cos(angle) * speed,
               dy = sin(angle) * speed;
-            noggles.push({ x: wsx, y: wsy, vx: dx, vy: dy, r: 10, angle: 0, angularVelocity: random(-0.2, 0.2) });
+            noggles.push({
+              x: wsx,
+              y: wsy,
+              vx: dx,
+              vy: dy,
+              r: 10,
+              angle: 0,
+              angularVelocity: random(-0.2, 0.2),
+            });
           }
-        } else {
-          initializeGame();
-          gameState = "playing";
         }
       }
 
       function touchStarted() {
+        if (gameState === "start") {
+          initializeGame();
+          gameState = "playing";
+          return false;
+        }
         if (gameState === "playing") {
           const t = touches[touches.length - 1];
           if (dist(t.x, t.y, jumpBtn.x, jumpBtn.y) <= jumpBtn.r) {
@@ -655,19 +701,24 @@
               angle = atan2(dyRaw, dxRaw),
               dx = cos(angle) * speed,
               dy = sin(angle) * speed;
-            noggles.push({ x: wsx, y: wsy, vx: dx, vy: dy, r: 10, angle: 0, angularVelocity: random(-0.2, 0.2) });
+            noggles.push({
+              x: wsx,
+              y: wsy,
+              vx: dx,
+              vy: dy,
+              r: 10,
+              angle: 0,
+              angularVelocity: random(-0.2, 0.2),
+            });
           }
           return false;
-        } else {
-          initializeGame();
-          gameState = "playing";
-          return false;
         }
+        return false;
       }
 
-      // Optional helper to mute/unmute your audio
+      // Optional audio mute control
       function setMuted(isMuted) {
-        // implement audio pausing/resuming here
+        // implement pausing/resuming audio
       }
     </script>
   </body>
