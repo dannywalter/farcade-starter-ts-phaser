@@ -49,15 +49,72 @@
   <body>
     <div class="game-container" id="game-container"></div>
     <script>
+      // ── STATE‑WATCHER SETUP ──
+      let _prevState = "";
+
       // — Farcade SDK event handlers —
       if (window.FarcadeSDK) {
         window.FarcadeSDK.on("play_again", () => {
-          initializeGame();
-          gameState = "playing";
+          console.log("[DEBUG] ▶ play_again fired  |  pre-cleanup:", {
+            gameState,
+            score,
+            noggles: noggles.length,
+            things: things.length,
+          });
+
+          cleanupGame(() => {
+            console.log("[DEBUG] ✔ cleanupGame callback  |  post-cleanup:", {
+              gameState,
+              score,
+              noggles: noggles.length,
+              things: things.length,
+            });
+
+            initializeGame();
+
+            console.log("[DEBUG] ✔ initializeGame() done  |  after-init:", {
+              gameState,
+              score,
+              noggles: noggles.length,
+              things: things.length,
+            });
+
+            gameState = "playing";
+            console.log("[DEBUG] ✱ gameState set → playing");
+          });
         });
+
         window.FarcadeSDK.on("toggle_mute", ({ isMuted }) => {
           setMuted && setMuted(isMuted);
         });
+      }
+
+      function cleanupGame(cb) {
+        console.log("[DEBUG] → cleanupGame START", {
+          score,
+          noggles: noggles.length,
+          things: things.length,
+        });
+
+        // your existing teardown…
+        noggles.length = 0;
+        things.length = 0;
+        platforms.length = 0;
+        clouds.length = 0;
+
+        score = 0;
+        coyoteTimer = 0;
+        jumpBufferTimer = 0;
+
+        // (clear any timeouts/intervals here)
+
+        console.log("[DEBUG] ← cleanupGame END", {
+          score,
+          noggles: noggles.length,
+          things: things.length,
+        });
+
+        if (typeof cb === "function") cb();
       }
 
       // — CONFIGURATION —
@@ -185,6 +242,7 @@
       }
 
       function initializeGame() {
+        console.log("[DEBUG] → initializeGame START");
         randomSeed(millis());
         const dullKeys = Object.keys(dullPalettes),
           brightKeys = Object.keys(brightPalettes);
@@ -275,9 +333,21 @@
         }));
 
         gameState = "start";
+        console.log("[DEBUG] ← initializeGame END", {
+          score,
+          noggles: noggles.length,
+          things: things.length,
+          platforms: platforms.length,
+          clouds: clouds.length,
+        });
       }
 
       function draw() {
+        // ── log whenever gameState changes ──
+        if (gameState !== _prevState) {
+          console.log(`[DEBUG] STATE: ${_prevState} → ${gameState}`);
+          _prevState = gameState;
+        }
         background("#63A0F9");
         drawClouds();
 
@@ -604,6 +674,12 @@
 
       function checkGoal() {
         if (isColliding(player, goal)) {
+          console.log("[DEBUG] checkGoal → win", {
+            playerPos: { x: player.x, y: player.y },
+            goalPos: goal,
+            score,
+            gameStateBefore: gameState,
+          });
           gameState = "win";
         }
       }
@@ -611,18 +687,25 @@
       function checkFallen() {
         // if player falls off bottom of screen…
         if (player.y - player.height / 2 > cameraY + height * 2) {
-          // spawn a final noggle straight up from the player's last position
-          const wsx = player.x;
-          const wsy = player.y - FRAME_HEIGHT * 1.5;
+          console.log("[DEBUG] checkFallen → gameOver", {
+            playerY: player.y,
+            cameraY,
+            threshold: cameraY + height * 2,
+            score,
+            gameStateBefore: gameState,
+          });
+
+          // spawn the final noggle…
           noggles.push({
-            x: wsx,
-            y: wsy,
-            vx: 0, // no horizontal velocity
-            vy: -NOGGLE_MAX_SPEED, // straight up at max speed
+            x: player.x,
+            y: player.y - FRAME_HEIGHT * 1.5,
+            vx: 0,
+            vy: -NOGGLE_MAX_SPEED,
             r: 10,
             angle: 0,
             angularVelocity: random(-0.2, 0.2),
           });
+
           gameState = "gameOver";
         }
       }
