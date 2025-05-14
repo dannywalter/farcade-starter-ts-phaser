@@ -52,9 +52,27 @@
       // ── STATE‑WATCHER SETUP ──
       let _prevState = "";
 
+      // Debug configuration - easily toggle features
+      const DEBUG = {
+        enabled: false,      // Master toggle for all debug features
+        showFPS: false,      // Show FPS counter
+        showPhysics: false,  // Show physics visualization (velocity, etc.)
+        showHitboxes: false, // Show collision boxes
+        showJumpInfo: false, // Show jump state (coyote time, jump buffer)
+        frameRates: [],      // Store recent frame rates for averaging
+        lastFrameTime: 0,    // Last frame timestamp for FPS calculation
+        performanceLog: {}   // Store performance timings
+      };
+
       // Custom map function to ensure it's available even if p5.js map function isn't
       function customMap(value, start1, stop1, start2, stop2) {
         return start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));
+      }
+      
+      // Helper function for conditional debugging 
+      function debugLog(category, message, data) {
+        if (!DEBUG.enabled || !DEBUG[category]) return;
+        console.log(`[${category.toUpperCase()}] ${message}`, data || '');
       }
 
       // — Farcade SDK event handlers —
@@ -441,9 +459,121 @@
         if (gameState === "playing") {
           drawTagCountdown();
         }
+        
+        // Draw debug info if enabled
+        drawDebugInfo();
       }
 
-      // New function to draw the tag countdown visuals
+      // Debug visualization function
+      function drawDebugInfo() {
+        if (!DEBUG.enabled) return;
+        
+        // Update frame rate data
+        const currentTime = millis();
+        if (DEBUG.lastFrameTime > 0) {
+          const fps = 1000 / (currentTime - DEBUG.lastFrameTime);
+          DEBUG.frameRates.push(fps);
+          if (DEBUG.frameRates.length > 30) DEBUG.frameRates.shift();
+        }
+        DEBUG.lastFrameTime = currentTime;
+        
+        push();
+        // Semi-transparent background for readability
+        fill(0, 0, 0, 150);
+        noStroke();
+        rectMode(CORNER);
+        
+        // FPS Counter
+        if (DEBUG.showFPS) {
+          // Top-left corner FPS display
+          rect(10, 5, 80, 25);
+          fill(0, 255, 0);
+          textAlign(LEFT, TOP);
+          textSize(16);
+          const avgFps = DEBUG.frameRates.length ? Math.round(DEBUG.frameRates.reduce((a,b) => a+b, 0) / DEBUG.frameRates.length) : 0;
+          text(`FPS: ${avgFps}`, 15, 10);
+        }
+        
+        // Physics Info
+        if (DEBUG.showPhysics && player) {
+          // Right side physics panel
+          rect(width - 150, 5, 145, 70);
+          fill(255);
+          textAlign(LEFT, TOP);
+          textSize(12);
+          text(`vX: ${player.velocityX.toFixed(2)}`, width - 145, 10);
+          text(`vY: ${player.velocityY.toFixed(2)}`, width - 145, 25);
+          text(`Pos: ${Math.round(player.x)}, ${Math.round(player.y)}`, width - 145, 40);
+          text(`Cam: ${Math.round(cameraX)}, ${Math.round(cameraY)}`, width - 145, 55);
+        }
+        
+        // Jump Info
+        if (DEBUG.showJumpInfo && player) {
+          // Bottom info panel
+          rect(10, height - 105, 150, 100);
+          fill(255);
+          textAlign(LEFT, TOP);
+          textSize(12);
+          text(`Ground: ${player.isOnGround}`, 15, height - 100);
+          text(`Coyote: ${coyoteTimer}`, 15, height - 85);
+          text(`JumpBuf: ${jumpBufferTimer}`, 15, height - 70);
+          text(`State: ${player.animation.currentSet}`, 15, height - 55);
+          text(`JumpSquash: ${player.jumpSquash.toFixed(2)}`, 15, height - 40);
+          text(`Direction: ${player.animation.facingDirection}`, 15, height - 25);
+        }
+        
+        // Draw hitboxes (translated to screen space)
+        if (DEBUG.showHitboxes) {
+          push();
+          translate(-cameraX, -cameraY);
+          
+          // Player hitbox
+          noFill();
+          stroke(255, 0, 0);
+          strokeWeight(2);
+          rectMode(CENTER);
+          rect(player.x, player.y, player.width, player.height);
+          
+          // Platform hitboxes (only on screen)
+          stroke(0, 255, 0);
+          strokeWeight(1);
+          rectMode(CORNER);
+          platforms.forEach(p => {
+            // Only draw platforms that are on screen
+            if (p.x < cameraX + width && p.x + p.w > cameraX && 
+                p.y < cameraY + height && p.y + p.h > cameraY) {
+              rect(p.x, p.y, p.w, p.h);
+            }
+          });
+          
+          // Thing hitboxes (collectibles)
+          stroke(0, 0, 255);
+          rectMode(CENTER);
+          things.forEach(t => {
+            // Only draw things that are on screen
+            if (t.x > cameraX - t.size/2 && t.x < cameraX + width + t.size/2 && 
+                t.y > cameraY - t.size/2 && t.y < cameraY + height + t.size/2) {
+              const halfSize = t.size / 2;
+              rect(t.x, t.y, t.size, t.size);
+            }
+          });
+          
+          // Noggle hitboxes
+          stroke(255, 255, 0);
+          noggles.forEach(n => {
+            // Only draw noggles that are on screen
+            if (n.x > cameraX && n.x < cameraX + width && 
+                n.y > cameraY && n.y < cameraY + height) {
+              circle(n.x, n.y, n.r * 2);
+            }
+          });
+          
+          pop();
+        }
+        
+        pop();
+      }
+
       function drawTagCountdown() {
         if (tagTimer <= TAG_TIMER_WARNING) {
           // Draw vignette effect that grows as timer decreases
@@ -671,11 +801,13 @@
         // Clear ground state when moving upward
         if (player.velocityY < -0.1) {
           player.isOnGround = false;
+          debugLog("showJumpInfo", "Left ground due to upward velocity");
         }
         
         // Start coyote timer when walking off platforms
         if (!player.isOnGround && player.wasOnGround) {
           coyoteTimer = 8; // Slightly more generous (133ms at 60fps)
+          debugLog("showJumpInfo", "Coyote time activated", { timer: coyoteTimer });
         }
         
         player.wasOnGround = player.isOnGround;
@@ -685,6 +817,13 @@
         if ((player.isOnGround || coyoteTimer > 0) && jumpBufferTimer > 0) {
           player.velocityY = -15;
           player.isOnGround = false;
+          
+          debugLog("showJumpInfo", "Jump performed", { 
+            usedCoyoteTime: !player.isOnGround && coyoteTimer > 0,
+            coyoteTimeLeft: coyoteTimer,
+            jumpBufferLeft: jumpBufferTimer
+          });
+          
           coyoteTimer = 0;
           jumpBufferTimer = 0;
           
@@ -694,10 +833,19 @@
           if (window.FarcadeSDK?.singlePlayer) {
             window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
           }
+        } else {
+          debugLog("showJumpInfo", "Jump attempt failed", {
+            isOnGround: player.isOnGround,
+            coyoteTime: coyoteTimer,
+            jumpBuffer: jumpBufferTimer
+          });
         }
       }
 
       function applyMovementPhysics(inputs) {
+        // Performance monitoring
+        const startTime = performance.now();
+        
         // Target velocity based on input
         let targetVelocityX = 0;
         if (inputs.moveLeft) targetVelocityX = -5;
@@ -725,6 +873,26 @@
         // Update facing direction only when actually moving
         if (abs(targetVelocityX) > 0.1) {
           player.animation.facingDirection = targetVelocityX > 0 ? 1 : -1;
+        }
+        
+        // Log performance data
+        const endTime = performance.now();
+        const duration = endTime - startTime;
+        
+        // Only log if taking too long (potential performance issue)
+        if (duration > 2 && DEBUG.enabled && DEBUG.showPhysics) {
+          console.log(`[PHYSICS] Movement physics took ${duration.toFixed(2)}ms`);
+        }
+        
+        // Store in performance log for trends analysis
+        if (DEBUG.enabled) {
+          if (!DEBUG.performanceLog.physics) {
+            DEBUG.performanceLog.physics = [];
+          }
+          DEBUG.performanceLog.physics.push(duration);
+          if (DEBUG.performanceLog.physics.length > 60) {
+            DEBUG.performanceLog.physics.shift();
+          }
         }
       }
 
@@ -886,6 +1054,9 @@
         text(`Score: ${score}`, width / 2, 10);
         // (optional) if you want to restore center/center for other text later:
         // textAlign(CENTER, CENTER);
+        
+        // Draw debug UI buttons if debug mode is enabled
+        drawDebugUI();
       }
 
       function isColliding(a, b) {
@@ -971,6 +1142,31 @@
       }
 
       function keyPressed() {
+        // Debug toggle with Backquote (`) key
+        if (keyCode === 192) { // Backtick/tilde key
+          DEBUG.enabled = !DEBUG.enabled;
+          console.log("Debug mode:", DEBUG.enabled);
+          return false;
+        }
+        
+        // Additional debug toggles when debug mode is enabled
+        if (DEBUG.enabled) {
+          switch(keyCode) {
+            case 49: // 1 key - Toggle FPS display
+              DEBUG.showFPS = !DEBUG.showFPS;
+              return false;
+            case 50: // 2 key - Toggle physics info
+              DEBUG.showPhysics = !DEBUG.showPhysics;
+              return false;
+            case 51: // 3 key - Toggle hitboxes
+              DEBUG.showHitboxes = !DEBUG.showHitboxes;
+              return false;
+            case 52: // 4 key - Toggle jump info
+              DEBUG.showJumpInfo = !DEBUG.showJumpInfo;
+              return false;
+          }
+        }
+        
         if (gameState === "playing") {
           if ([UP_ARROW, 87, 32].includes(keyCode)) {
             jumpBufferTimer = 6;
@@ -991,13 +1187,46 @@
         }
       }
 
+      // For mobile debug mode toggling
+      let lastTouchTime = 0;
+      let touchCount = 0;
+
       function touchStarted() {
+        // Mobile debug mode toggle with 3-finger tap
+        const now = millis();
+        if (touches.length === 3) {
+          if (now - lastTouchTime < 500) {
+            touchCount++;
+            if (touchCount >= 2) { // Require double 3-finger tap
+              DEBUG.enabled = !DEBUG.enabled;
+              console.log("Debug mode:", DEBUG.enabled);
+              
+              // Show mobile debug menu if debug mode is enabled
+              if (DEBUG.enabled) {
+                showMobileDebugMenu();
+              }
+              
+              touchCount = 0;
+              return false;
+            }
+          } else {
+            touchCount = 1;
+          }
+          lastTouchTime = now;
+        }
+        
         if (gameState === "start") {
           initializeGame();
           gameState = "playing";
           return false;
         }
+        
         if (gameState === "playing") {
+          // Check for debug button touches if debug mode is active
+          if (DEBUG.enabled && handleDebugButtonTouch()) {
+            return false;
+          }
+          
           const t = touches[touches.length - 1];
           if (dist(t.x, t.y, jumpBtn.x, jumpBtn.y) <= jumpBtn.r) {
             jumpBufferTimer = 6;
@@ -1013,6 +1242,109 @@
           return false;
         }
         return false;
+      }
+      
+      // Mobile debug menu variables
+      let debugButtons = [];
+      
+      function showMobileDebugMenu() {
+  // Create debug buttons in a row at a safer position
+  // Move from top (20px) to bottom area of screen
+  const buttonSize = 40;
+  const spacing = 10;
+  const startX = 20;
+  // Position above the game controls but below Farcade SDK buttons
+  const startY = height - 150; 
+  
+  debugButtons = [
+    { 
+      x: startX, 
+      y: startY, 
+      size: buttonSize, 
+      label: "FPS", 
+      toggle: "showFPS", 
+      color: DEBUG.showFPS ? [0, 255, 0] : [100, 100, 100] 
+    },
+    { 
+      x: startX + buttonSize + spacing, 
+      y: startY, 
+      size: buttonSize, 
+      label: "PHY", 
+      toggle: "showPhysics", 
+      color: DEBUG.showPhysics ? [0, 255, 0] : [100, 100, 100] 
+    },
+    { 
+      x: startX + (buttonSize + spacing) * 2, 
+      y: startY, 
+      size: buttonSize, 
+      label: "HIT", 
+      toggle: "showHitboxes", 
+      color: DEBUG.showHitboxes ? [0, 255, 0] : [100, 100, 100] 
+    },
+    { 
+      x: startX + (buttonSize + spacing) * 3, 
+      y: startY, 
+      size: buttonSize, 
+      label: "JMP", 
+      toggle: "showJumpInfo", 
+      color: DEBUG.showJumpInfo ? [0, 255, 0] : [100, 100, 100] 
+    },
+    { 
+      x: startX + (buttonSize + spacing) * 4, 
+      y: startY, 
+      size: buttonSize, 
+      label: "X", 
+      toggle: "close",
+      color: [255, 0, 0]
+    }
+  ];
+}
+      
+      function handleDebugButtonTouch() {
+        if (!DEBUG.enabled || debugButtons.length === 0) return false;
+        
+        // Check if any debug button was touched
+        for (const touch of touches) {
+          for (const button of debugButtons) {
+            if (dist(touch.x, touch.y, button.x + button.size/2, button.y + button.size/2) < button.size/2) {
+              if (button.toggle === "close") {
+                DEBUG.enabled = false;
+                return true;
+              } else {
+                DEBUG[button.toggle] = !DEBUG[button.toggle];
+                button.color = DEBUG[button.toggle] ? [0, 255, 0] : [100, 100, 100];
+                return true;
+              }
+            }
+          }
+        }
+        
+        return false;
+      }
+      
+      // Draw debug UI buttons
+      function drawDebugUI() {
+        if (!DEBUG.enabled || debugButtons.length === 0) return;
+        
+        push();
+        rectMode(CORNER);
+        textAlign(CENTER, CENTER);
+        textSize(12);
+        
+        for (const button of debugButtons) {
+          // Draw button background
+          fill(button.color[0], button.color[1], button.color[2], 200);
+          stroke(255);
+          strokeWeight(1);
+          rect(button.x, button.y, button.size, button.size, 5);
+          
+          // Draw button label
+          fill(255);
+          noStroke();
+          text(button.label, button.x + button.size/2, button.y + button.size/2);
+        }
+        
+        pop();
       }
 
       function handleThrowInput(mx, my) {
