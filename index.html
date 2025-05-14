@@ -251,6 +251,9 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
 
         // Add this line to make the canvas focusable
   cnv.elt.setAttribute('tabindex', '0');
+  
+        // Initially focus the canvas to ensure keyboard input works from the start
+        cnv.elt.focus();
 
         noSmooth();
         textAlign(CENTER, CENTER);
@@ -398,6 +401,11 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
           platforms: platforms.length,
           clouds: clouds.length,
         });
+        
+        // Ensure canvas gets focus to capture keyboard events
+        setTimeout(() => {
+          document.querySelector('canvas').focus();
+        }, 100);
       }
 
       function draw() {
@@ -1031,6 +1039,8 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
         if (gameState === "start") {
           initializeGame();
           gameState = "playing";
+          // Ensure keyboard focus when starting game with mouse
+          document.querySelector('canvas').focus();
           return false;
         }
         if (gameState === "playing") {
@@ -1044,6 +1054,8 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
         if (gameState === "start") {
           initializeGame();
           gameState = "playing";
+          // Also focus canvas on touch start to enable keyboard fallbacks
+          document.querySelector('canvas').focus();
           return false;
         }
         
