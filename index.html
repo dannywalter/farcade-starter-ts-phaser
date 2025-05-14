@@ -66,6 +66,13 @@ body {
     <script>
       // ── STATE‑WATCHER SETUP ──
       let _prevState = "";
+      
+      // Debounce for throw mechanic
+      let lastThrowTime = 0;
+      const THROW_COOLDOWN = 300; // milliseconds between throws
+      
+      // Track which touch/click events have already been processed
+      let activeTouchIds = {};
 
       // Custom map function to ensure it's available even if p5.js map function isn't
       function customMap(value, start1, stop1, start2, stop2) {
@@ -1002,15 +1009,21 @@ body {
       }
 
       function mousePressed() {
+        // Check if this is actually a touch event on mobile
+        if (touches && touches.length > 0) {
+          return false; // Skip processing if it's actually a touch event
+        }
+        
         if (gameState === "start") {
           initializeGame();
           gameState = "playing";
-          return;
+          return false;
         }
         if (gameState === "playing") {
           // Use our improved throw handler
           handleThrowInput(mouseX, mouseY);
         }
+        return false; // Prevent default
       }
 
       function touchStarted() {
@@ -1019,15 +1032,26 @@ body {
           gameState = "playing";
           return false;
         }
+        
         if (gameState === "playing") {
           const t = touches[touches.length - 1];
+          
+          // Store the touch ID to track it
+          if (t && t.id !== undefined) {
+            activeTouchIds[t.id] = {
+              startX: t.x,
+              startY: t.y,
+              time: millis()
+            };
+          }
+          
           if (dist(t.x, t.y, jumpBtn.x, jumpBtn.y) <= jumpBtn.r) {
             jumpBufferTimer = 6;
             tryPerformJump();
             return false;
           }
           
-          // Use our improved throw handler
+          // Use our improved throw handler - only on touchStart
           if (handleThrowInput(t.x, t.y)) {
             return false;
           }
@@ -1036,8 +1060,57 @@ body {
         }
         return false;
       }
+      
+      // Add touchEnded handler to prevent double throws
+      function touchEnded() {
+        // We never want to throw on touch end - ignore the event completely for throw purposes
+        
+        // Clean up the touch tracking if we have an ID
+        if (touches.length > 0) {
+          const t = touches[touches.length - 1];
+          if (t && t.id !== undefined) {
+            delete activeTouchIds[t.id];
+          }
+        }
+        
+        return false;
+      }
 
       function handleThrowInput(mx, my) {
+        // Apply debounce - prevent rapid consecutive throws
+        const currentTime = millis();
+        if (currentTime - lastThrowTime < THROW_COOLDOWN) {
+          return false; // Too soon since last throw
+        }
+        
+        // Handle touch type detection - only allow throws on initial touch
+        if (touches && touches.length > 0) {
+          // This is a touch-sourced event
+          let touchEvent = false;
+          
+          for (let i = 0; i < touches.length; i++) {
+            const t = touches[i];
+            // Check if this is a new touch or a moved touch
+            if (t.id !== undefined && activeTouchIds[t.id]) {
+              const touchInfo = activeTouchIds[t.id];
+              
+              // If this touch has moved a lot, it might be trying to control the joystick
+              // so don't treat it as a throw attempt
+              const moveDistance = dist(t.x, t.y, touchInfo.startX, touchInfo.startY);
+              if (moveDistance > 20) {
+                return false;
+              }
+              
+              touchEvent = true;
+            }
+          }
+          
+          // If it's not from our trackable touch events, don't allow the throw
+          if (!touchEvent) {
+            return false;
+          }
+        }
+        
         // Is this a valid throw input?
         if (dist(mx, my, joystick.x, joystick.y) <= joystick.activeRadius || 
             dist(mx, my, jumpBtn.x, jumpBtn.y) <= jumpBtn.r) {
@@ -1083,6 +1156,9 @@ body {
         if (window.FarcadeSDK?.singlePlayer) {
           window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
         }
+        
+        // Update the last throw time for debouncing
+        lastThrowTime = currentTime;
         
         return true;
       }
