@@ -52,6 +52,11 @@
       // ── STATE‑WATCHER SETUP ──
       let _prevState = "";
 
+      // Custom map function to ensure it's available even if p5.js map function isn't
+      function customMap(value, start1, stop1, start2, stop2) {
+        return start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));
+      }
+
       // — Farcade SDK event handlers —
       if (window.FarcadeSDK) {
         window.FarcadeSDK.on("play_again", () => {
@@ -269,6 +274,9 @@
           velocityX: 0,
           velocityY: 0,
           isOnGround: false,
+          wasOnGround: false,
+          jumpSquash: 0,
+          throwSquash: 0,
           spriteSheet: nounSpriteSheet,
           animation: { currentSet: "idle", facingDirection: 1, frameIndex: 0, tick: 0 },
         };
@@ -373,14 +381,30 @@
       }
 
       function runGame() {
-        handlePlayerInput();
+        // Collect all inputs first
+        const inputs = collectInputs();
+        
+        // Process jump buffer and coyote time
+        updateJumpState();
+        
+        // Apply movement physics based on inputs
+        applyMovementPhysics(inputs);
+        
+        // Handle other player input (jumping, throwing)
+        handlePlayerInput(inputs);
+        
+        // Regular physics and collision updates
         updatePlayer();
         updatePlayerAnimationState();
         advancePlayerFrame();
+        
+        // Camera and visual updates after physics
         updateCamera();
-        updateTagTimer(); // Add tag timer update
+        updateTagTimer();
         drawGameScene();
         updateNoggles();
+        
+        // Win/loss conditions
         checkGoal();
         checkFallen();
       }
@@ -423,7 +447,7 @@
       function drawTagCountdown() {
         if (tagTimer <= TAG_TIMER_WARNING) {
           // Draw vignette effect that grows as timer decreases
-          const vignetteIntensity = map(tagTimer, TAG_TIMER_WARNING, 0, 0, 0.8);
+          const vignetteIntensity = customMap(tagTimer, TAG_TIMER_WARNING, 0, 0, 0.8);
           drawVignette(vignetteIntensity);
           
           // Draw countdown timer for last 5 seconds
@@ -440,7 +464,7 @@
           
           // Desaturate world as timer approaches zero
           if (vignetteIntensity > 0.3) {
-            const desaturation = map(vignetteIntensity, 0.3, 0.8, 0, 255);
+            const desaturation = customMap(vignetteIntensity, 0.3, 0.8, 0, 255);
             fill(0, 0, 0, desaturation * 0.5);
             rect(0, 0, width, height);
           }
@@ -506,7 +530,7 @@
         // Add red tint to indicate danger
         if (intensity > 0.5) {
           drawingContext.save();
-          drawingContext.globalAlpha = map(intensity, 0.5, 1, 0, 0.15);
+          drawingContext.globalAlpha = customMap(intensity, 0.5, 1, 0, 0.15);
           drawingContext.fillStyle = 'rgba(255, 0, 0, 0.3)';
           drawingContext.fillRect(0, 0, width, height);
           drawingContext.restore();
@@ -570,7 +594,7 @@
           n.angle += n.angularVelocity;
           // platform collision
           for (const p of platforms) {
-            if (n.x > p.x && n.x < p.x + p.w && n.y > p.y && n.y < p.y + p.h) {
+            if (n.x > p.x && n.x < p.x + p.w && n.y > p.y && n.y < p.h) {
               p.color = activeBrightPalette[floor(random(activeBrightPalette.length))];
               if (window.FarcadeSDK?.singlePlayer) {
                 window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
@@ -605,13 +629,112 @@
         }
       }
 
-      function handlePlayerInput() {
+      // New function for unified input handling
+      function collectInputs() {
+        const inputs = {
+          moveLeft: false,
+          moveRight: false,
+          jump: false,
+          throw: false,
+          throwTarget: {x: 0, y: 0},
+          moveStrength: 1.0,
+          jumpBuffered: jumpBufferTimer > 0
+        };
+        
+        // Keyboard inputs
+        inputs.moveLeft = keyIsDown(LEFT_ARROW) || keyIsDown(65);
+        inputs.moveRight = keyIsDown(RIGHT_ARROW) || keyIsDown(68);
+        
+        // Touch/mouse inputs
+        for (const t of touches) {
+          if (dist(t.x, t.y, joystick.x, joystick.y) < joystick.activeRadius) {
+            const dx = t.x - joystick.x;
+            inputs.moveLeft = dx < -joystick.inner/2;
+            inputs.moveRight = dx > joystick.inner/2;
+            // Store analog value for variable speed
+            inputs.moveStrength = constrain(abs(dx) / (joystick.outer - joystick.inner), 0, 1);
+          }
+          
+          if (dist(t.x, t.y, jumpBtn.x, jumpBtn.y) < jumpBtn.r) {
+            inputs.jump = true;
+          }
+        }
+        
+        return inputs;
+      }
+
+      function updateJumpState() {
+        // Decrement timers
+        if (jumpBufferTimer > 0) jumpBufferTimer--;
+        if (coyoteTimer > 0) coyoteTimer--;
+        
+        // Clear ground state when moving upward
+        if (player.velocityY < -0.1) {
+          player.isOnGround = false;
+        }
+        
+        // Start coyote timer when walking off platforms
+        if (!player.isOnGround && player.wasOnGround) {
+          coyoteTimer = 8; // Slightly more generous (133ms at 60fps)
+        }
+        
+        player.wasOnGround = player.isOnGround;
+      }
+      
+      function tryPerformJump() {
+        if ((player.isOnGround || coyoteTimer > 0) && jumpBufferTimer > 0) {
+          player.velocityY = -15;
+          player.isOnGround = false;
+          coyoteTimer = 0;
+          jumpBufferTimer = 0;
+          
+          // Add jump squash/stretch animation
+          player.jumpSquash = 1;
+          
+          if (window.FarcadeSDK?.singlePlayer) {
+            window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
+          }
+        }
+      }
+
+      function applyMovementPhysics(inputs) {
+        // Target velocity based on input
+        let targetVelocityX = 0;
+        if (inputs.moveLeft) targetVelocityX = -5;
+        if (inputs.moveRight) targetVelocityX = 5;
+        
+        // Apply analog control if using touch
+        if (inputs.moveStrength !== undefined) {
+          targetVelocityX *= inputs.moveStrength;
+        }
+        
+        // Apply acceleration and deceleration for smoother movement
+        const accelerationGround = 0.8;
+        const accelerationAir = 0.4;
+        const currentAccel = player.isOnGround ? accelerationGround : accelerationAir;
+        
+        if (targetVelocityX !== 0) {
+          // Accelerating
+          player.velocityX = lerp(player.velocityX, targetVelocityX, currentAccel);
+        } else {
+          // Decelerating (stop more quickly)
+          player.velocityX *= 0.8;
+          if (abs(player.velocityX) < 0.1) player.velocityX = 0;
+        }
+        
+        // Update facing direction only when actually moving
+        if (abs(targetVelocityX) > 0.1) {
+          player.animation.facingDirection = targetVelocityX > 0 ? 1 : -1;
+        }
+      }
+
+      function handlePlayerInput(inputs) {
         player.velocityX = 0;
-        if (keyIsDown(LEFT_ARROW) || keyIsDown(65)) {
+        if (inputs.moveLeft) {
           player.velocityX = -5;
           player.animation.facingDirection = -1;
         }
-        if (keyIsDown(RIGHT_ARROW) || keyIsDown(68)) {
+        if (inputs.moveRight) {
           player.velocityX = 5;
           player.animation.facingDirection = 1;
         }
@@ -713,9 +836,25 @@
         const sy = map.row * FRAME_HEIGHT;
         const dw = FRAME_WIDTH * 3;
         const dh = FRAME_HEIGHT * 3;
-        const yoff = (dh - player.height) / 2;
+        
         push();
-        image(player.spriteSheet, player.x, player.y - yoff, dw, dh, sx, sy, FRAME_WIDTH, FRAME_HEIGHT);
+        translate(player.x, player.y);
+        
+        // Apply jump squash/stretch animation
+        if (player.jumpSquash > 0) {
+          const squashAmount = customMap(player.jumpSquash, 1, 0, 0.2, 0);
+          scale(1 + squashAmount, 1 - squashAmount * 2);
+          player.jumpSquash = max(player.jumpSquash - 0.1, 0);
+        }
+        
+        // Apply throw animation
+        if (player.throwSquash > 0) {
+          rotate(player.animation.facingDirection * customMap(player.throwSquash, 1, 0, PI/16, 0));
+          player.throwSquash = max(player.throwSquash - 0.15, 0);
+        }
+        
+        const yoff = (dh - player.height) / 2;
+        image(player.spriteSheet, 0, -yoff, dw, dh, sx, sy, FRAME_WIDTH, FRAME_HEIGHT);
         pop();
       }
 
@@ -847,32 +986,8 @@
           return;
         }
         if (gameState === "playing") {
-          if (
-            dist(mouseX, mouseY, joystick.x, joystick.y) > joystick.activeRadius &&
-            dist(mouseX, mouseY, jumpBtn.x, jumpBtn.y) > jumpBtn.r
-          ) {
-            const wsx = player.x,
-              wsy = player.y - FRAME_HEIGHT * 1.5,
-              wex = cameraX + mouseX,
-              wey = cameraY + mouseY,
-              dxRaw = wex - wsx,
-              dyRaw = wey - wsy,
-              distRaw = sqrt(dxRaw * dxRaw + dyRaw * dyRaw),
-              eff = min(distRaw, NOGGLE_MAX_DISTANCE),
-              speed = (eff / NOGGLE_MAX_DISTANCE) * NOGGLE_MAX_SPEED,
-              angle = atan2(dyRaw, dxRaw),
-              dx = cos(angle) * speed,
-              dy = sin(angle) * speed;
-            noggles.push({
-              x: wsx,
-              y: wsy,
-              vx: dx,
-              vy: dy,
-              r: 10,
-              angle: 0,
-              angularVelocity: random(-0.2, 0.2),
-            });
-          }
+          // Use our improved throw handler
+          handleThrowInput(mouseX, mouseY);
         }
       }
 
@@ -889,35 +1004,65 @@
             tryPerformJump();
             return false;
           }
-          if (
-            dist(t.x, t.y, joystick.x, joystick.y) > joystick.activeRadius &&
-            dist(t.x, t.y, jumpBtn.x, jumpBtn.y) > jumpBtn.r
-          ) {
-            const wsx = player.x,
-              wsy = player.y - FRAME_HEIGHT * 1.5,
-              wex = cameraX + t.x,
-              wey = cameraY + t.y,
-              dxRaw = wex - wsx,
-              dyRaw = wey - wsy,
-              distRaw = sqrt(dxRaw * dxRaw + dyRaw * dyRaw),
-              eff = min(distRaw, NOGGLE_MAX_DISTANCE),
-              speed = (eff / NOGGLE_MAX_DISTANCE) * NOGGLE_MAX_SPEED,
-              angle = atan2(dyRaw, dxRaw),
-              dx = cos(angle) * speed,
-              dy = sin(angle) * speed;
-            noggles.push({
-              x: wsx,
-              y: wsy,
-              vx: dx,
-              vy: dy,
-              r: 10,
-              angle: 0,
-              angularVelocity: random(-0.2, 0.2),
-            });
+          
+          // Use our improved throw handler
+          if (handleThrowInput(t.x, t.y)) {
+            return false;
           }
+          
           return false;
         }
         return false;
+      }
+
+      function handleThrowInput(mx, my) {
+        // Is this a valid throw input?
+        if (dist(mx, my, joystick.x, joystick.y) <= joystick.activeRadius || 
+            dist(mx, my, jumpBtn.x, jumpBtn.y) <= jumpBtn.r) {
+          return false; // Don't throw if clicking controls
+        }
+        
+        // Calculate world coordinates
+        const wsx = player.x;
+        const wsy = player.y - FRAME_HEIGHT * 1.5; // Throw from higher point
+        const wex = cameraX + mx;
+        const wey = cameraY + my;
+        
+        // Calculate direction and power
+        const dxRaw = wex - wsx;
+        const dyRaw = wey - wsy;
+        const distRaw = sqrt(dxRaw * dxRaw + dyRaw * dyRaw);
+        
+        // Add minimum throw distance to ensure intentionality
+        if (distRaw < 20) return false;
+        
+        const eff = min(distRaw, NOGGLE_MAX_DISTANCE);
+        const speed = customMap(eff, 0, NOGGLE_MAX_DISTANCE, NOGGLE_MAX_SPEED * 0.5, NOGGLE_MAX_SPEED);
+        const angle = atan2(dyRaw, dxRaw);
+        const dx = cos(angle) * speed;
+        const dy = sin(angle) * speed;
+        
+        // Create throw with proper initial velocity
+        noggles.push({
+          x: wsx,
+          y: wsy,
+          vx: dx,
+          vy: dy,
+          r: 10,
+          angle: angle, // Start at angle of throw
+          angularVelocity: random(-0.2, 0.2),
+          throwFrame: frameCount // Track when thrown for effects
+        });
+        
+        // Add throw animation to player
+        player.throwSquash = 1;
+        
+        // Provide feedback
+        if (window.FarcadeSDK?.singlePlayer) {
+          window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
+        }
+        
+        return true;
       }
 
       // Optional audio mute control
