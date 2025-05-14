@@ -105,6 +105,7 @@
         score = 0;
         coyoteTimer = 0;
         jumpBufferTimer = 0;
+        tagTimer = TAG_TIMER_MAX;
 
         // (clear any timeouts/intervals here)
 
@@ -144,6 +145,10 @@
       const THING_BASE_SIZE = 120;
       const THING_BOB_AMPLITUDE = 10;
       const THING_BOB_SPEED = 0.05;
+      
+      // Tag-or-Die game mechanic
+      const TAG_TIMER_MAX = 600; // 10 seconds at 60fps
+      const TAG_TIMER_WARNING = 300; // 5 seconds warning threshold
 
       // sprite‑sheet setup
       const SPRITE_SHEET_URL =
@@ -186,7 +191,8 @@
       let loadedThingImgs = [],
         loadedThingGrayImgs = [];
       let coyoteTimer = 0,
-        jumpBufferTimer = 0;
+        jumpBufferTimer = 0,
+        tagTimer = TAG_TIMER_MAX;
 
       let titleBg;
 
@@ -253,6 +259,7 @@
         score = 0;
         coyoteTimer = 0;
         jumpBufferTimer = 0;
+        tagTimer = TAG_TIMER_MAX;
 
         player = {
           x: 100,
@@ -371,10 +378,22 @@
         updatePlayerAnimationState();
         advancePlayerFrame();
         updateCamera();
+        updateTagTimer(); // Add tag timer update
         drawGameScene();
         updateNoggles();
         checkGoal();
         checkFallen();
+      }
+      
+      function updateTagTimer() {
+        tagTimer--;
+        if (tagTimer <= 0) {
+          console.log("[DEBUG] tagTimer expired → gameOver", {
+            score,
+            gameStateBefore: gameState,
+          });
+          gameState = "gameOver";
+        }
       }
 
       function updateCamera() {
@@ -392,6 +411,107 @@
         drawGoal();
         drawPlayer();
         drawNoggles();
+        pop();
+        
+        // Draw tag timer effects after everything else
+        if (gameState === "playing") {
+          drawTagCountdown();
+        }
+      }
+
+      // New function to draw the tag countdown visuals
+      function drawTagCountdown() {
+        if (tagTimer <= TAG_TIMER_WARNING) {
+          // Draw vignette effect that grows as timer decreases
+          const vignetteIntensity = map(tagTimer, TAG_TIMER_WARNING, 0, 0, 0.8);
+          drawVignette(vignetteIntensity);
+          
+          // Draw countdown timer for last 5 seconds
+          const seconds = ceil(tagTimer / 60);
+          if (seconds <= 5) {
+            textAlign(CENTER, CENTER);
+            textSize(64);
+            // Make it flash when under 3 seconds
+            if (seconds > 2 || frameCount % 10 < 5) {
+              fill(255, 0, 0, 200);
+              text(seconds, width / 2, height / 3);
+            }
+          }
+          
+          // Desaturate world as timer approaches zero
+          if (vignetteIntensity > 0.3) {
+            const desaturation = map(vignetteIntensity, 0.3, 0.8, 0, 255);
+            fill(0, 0, 0, desaturation * 0.5);
+            rect(0, 0, width, height);
+          }
+        }
+        
+        // Always show timer at the top
+        textAlign(CENTER, TOP);
+        textSize(20);
+        fill(255);
+        text(`Tag Timer: ${floor(tagTimer/60)}`, width / 2, 40);
+      }
+
+      // Function to draw vignette effect - improved version
+      function drawVignette(intensity) {
+        if (intensity <= 0) return;
+        
+        push();
+        // Create a smoother vignette using a custom shader approach
+        const vignetteSize = max(width, height) * 1.1;
+        const minDim = min(width, height);
+        const maxDim = max(width, height);
+        
+        // Draw corners first (stronger effect)
+        noStroke();
+        for (let corner = 0; corner < 4; corner++) {
+          const x = (corner % 2 === 0) ? 0 : width;
+          const y = (corner < 2) ? 0 : height;
+          
+          drawingContext.save();
+          drawingContext.globalAlpha = intensity * 0.8;
+          
+          const gradient = drawingContext.createRadialGradient(
+            x, y, 0,
+            x, y, maxDim * 0.8
+          );
+          
+          gradient.addColorStop(0, 'rgba(0, 0, 0, 0.7)');
+          gradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.2)');
+          gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+          
+          drawingContext.fillStyle = gradient;
+          drawingContext.fillRect(0, 0, width, height);
+          drawingContext.restore();
+        }
+        
+        // Center vignette (for consistent edge darkening)
+        drawingContext.save();
+        drawingContext.globalAlpha = intensity;
+        
+        const gradient = drawingContext.createRadialGradient(
+          width/2, height/2, minDim * 0.1, 
+          width/2, height/2, maxDim * 0.6
+        );
+        
+        gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        gradient.addColorStop(0.7, 'rgba(0, 0, 0, ' + (intensity * 0.4) + ')');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, ' + (intensity * 0.7) + ')');
+        
+        drawingContext.fillStyle = gradient;
+        drawingContext.fillRect(0, 0, width, height);
+        drawingContext.restore();
+        
+        // Add red tint to indicate danger
+        if (intensity > 0.5) {
+          drawingContext.save();
+          drawingContext.globalAlpha = map(intensity, 0.5, 1, 0, 0.15);
+          drawingContext.fillStyle = 'rgba(255, 0, 0, 0.3)';
+          drawingContext.fillRect(0, 0, width, height);
+          drawingContext.restore();
+        }
+        
         pop();
       }
 
@@ -470,6 +590,7 @@
             ) {
               t.collected = true;
               score += 10;
+              tagTimer = TAG_TIMER_MAX; // Reset timer when successfully nounifying
               if (window.FarcadeSDK?.singlePlayer) {
                 window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
               }
