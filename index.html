@@ -182,9 +182,11 @@ body {
 
       // sprite‑sheet setup
       const SPRITE_SHEET_URL =
-        "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/spritesheet_01-013XKHgXmv0XWoCyGHLamCEVdy6Kla.png";
+        "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/onh1WvDi9ayO/spritesheet_things_80-9rfYZQa73Ra9GHwbdGiB8jH5oZuOnm.png";
       const THING_FRAME_SIZE = 64;
-      const TOTAL_THING_FRAMES = 20;
+const THING_FRAMES_PER_ROW = 20;
+const TOTAL_THING_ROWS = 4;
+const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
 
       // animation constants
       const FRAME_WIDTH = 48,
@@ -255,11 +257,23 @@ body {
         imageMode(CENTER);
         colorMode(RGB, 255);
 
-        // split the sprite sheet into 20 individual frames
-        for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
-          let frame = thingSpriteSheet.get(i * THING_FRAME_SIZE, 0, THING_FRAME_SIZE, THING_FRAME_SIZE);
-          loadedThingImgs.push(frame);
-        }
+        // split the sprite sheet into 60 individual frames
+        // Modified loading code
+for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
+  // Calculate row and column from index
+  const col = i % THING_FRAMES_PER_ROW;
+  const row = Math.floor(i / THING_FRAMES_PER_ROW);
+  
+  // Get frame from correct position in sprite sheet
+  let frame = thingSpriteSheet.get(
+    col * THING_FRAME_SIZE,
+    row * THING_FRAME_SIZE,
+    THING_FRAME_SIZE,
+    THING_FRAME_SIZE
+  );
+  
+  loadedThingImgs.push(frame);
+}
         // generate grayscale copies
         loadedThingImgs.forEach((img) => {
           let g = createGraphics(THING_FRAME_SIZE, THING_FRAME_SIZE);
