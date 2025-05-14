@@ -86,6 +86,9 @@
 
             gameState = "playing";
             console.log("[DEBUG] ✱ gameState set → playing");
+
+            // Add this line to restore focus to the canvas after reset
+      document.querySelector('canvas').focus();
           });
         });
 
@@ -221,6 +224,10 @@
         pixelDensity(window.devicePixelRatio || 1);
         let cnv = createCanvas(500, 800).parent("game-container");
         cnv.elt.removeAttribute("style");
+
+        // Add this line to make the canvas focusable
+  cnv.elt.setAttribute('tabindex', '0');
+  
         noSmooth();
         textAlign(CENTER, CENTER);
         imageMode(CENTER);
