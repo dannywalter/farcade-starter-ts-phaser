@@ -231,7 +231,7 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
       let helpTexts = {
         crumbling: { shown: false, text: "NEW! Crumbling platforms fall after you step on them!" },
         vanishing: { shown: false, text: "NEW! Vanishing platforms appear and disappear!" },
-        moving: { shown: false, text: "NEW! These blue platforms move up and down!" },
+        moving: { shown: false, text: "NEW! These blue platforms move left and right!" },
         bouncy: { shown: false, text: "NEW! Yellow platforms give you an extra boost!" }
       };
 
@@ -357,100 +357,84 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
           let platW = random(MIN_PLAT_WIDTH, lerp(MAX_PLAT_WIDTH, MIN_PLAT_WIDTH, d)),
             vertRange = lerp(PLAYER_MAX_JUMP_HEIGHT * 0.5, PLAYER_MAX_JUMP_HEIGHT, d),
             newY = constrain(prevY + random(-vertRange, vertRange), 100, height - 150);
-          // Determine platform type using a more structured, sequence-based approach
+          // Determine platform type with a more frequent distribution of special platforms
           // Default to normal platform
           let platformType = "normal";
           
-          // Create a structured sequence for introducing platform types gradually
-          // We'll use platform count as our sequence marker
+          // Get platform count for tracking progression through the level
           const platformCount = platforms.length;
-          const segmentLength = 30; // How many platforms per major segment
           
-          // Introduction sequence - first third of the level is very structured
-          if (platformCount < segmentLength * 3) {
-            // First segment: Mostly normal with occasional bouncy platforms to introduce them
-            if (platformCount < segmentLength) {
-              // First introduce bouncy platform at platform #5, then every 10th platform
-              if (platformCount === 5 || (platformCount > 15 && platformCount % 10 === 5)) {
-                platformType = "bouncy";
-              }
-            } 
-            // Second segment: Introduce moving platforms
-            else if (platformCount < segmentLength * 2) {
-              // First introduce moving platform at platform #35, then every 8th platform
-              if (platformCount === segmentLength + 5 || (platformCount > segmentLength + 13 && (platformCount - segmentLength) % 8 === 5)) {
-                platformType = "moving";
-              }
-              // Still keep a bouncy platform occasionally
-              else if (platformCount % 15 === 10) {
-                platformType = "bouncy";
-              }
-            } 
-            // Third segment: Introduce vanishing platforms
-            else {
-              // First introduce vanishing platform at platform #65, then every 7th platform
-              if (platformCount === segmentLength * 2 + 5 || (platformCount > segmentLength * 2 + 12 && (platformCount - segmentLength * 2) % 7 === 5)) {
-                platformType = "vanishing";
-              }
-              // Keep some moving platforms
-              else if (platformCount % 12 === 3) {
-                platformType = "moving";
-              }
-              // And occasional bouncy platforms
-              else if (platformCount % 20 === 10) {
-                platformType = "bouncy";
-              }
+          // Create a much more varied and frequent pattern of special platforms
+          // First 10 platforms are mostly normal to give the player a gentle start
+          if (platformCount < 10) {
+            // Introduce first bouncy platform at #5
+            if (platformCount === 5) {
+              platformType = "bouncy";
             }
           }
-          // Middle section: Introduce crumbling platforms and start mixing types
-          else if (platformCount < segmentLength * 5) {
-            // Fourth segment: Introduce crumbling platforms
-            if (platformCount < segmentLength * 4) {
-              // First introduce crumbling platform at platform #95, then every 6th platform
-              if (platformCount === segmentLength * 3 + 5 || (platformCount > segmentLength * 3 + 11 && (platformCount - segmentLength * 3) % 6 === 5)) {
-                platformType = "crumbling";
-              }
-              // Keep other platform types occasionally
-              else if (platformCount % 10 === 2) {
-                platformType = "bouncy";
-              }
-              else if (platformCount % 10 === 7) {
-                platformType = "moving";
-              }
-              else if (platformCount % 15 === 12) {
-                platformType = "vanishing";
-              }
-            }
-            // Fifth segment: Start making combinations and sequences
-            else {
-              // Simple pattern: bouncy -> moving -> vanishing -> crumbling -> normal
-              const patternPosition = platformCount % 10;
-              if (patternPosition === 1) platformType = "bouncy";
-              else if (patternPosition === 3) platformType = "moving";
-              else if (patternPosition === 5) platformType = "vanishing";
-              else if (patternPosition === 7) platformType = "crumbling";
-              // else normal (0, 2, 4, 6, 8, 9)
-            }
-          }
-          // Final section: More varied and challenging combinations
+          // After platform #10, implement a more varied and frequent pattern
           else {
-            // Use difficulty to gradually increase special platform frequency
-            const specialPlatformChance = lerp(0.4, 0.7, d);
-            if (random() < specialPlatformChance) {
-              // More even distribution of platform types in the later level
-              const typeRoll = random();
-              if (typeRoll < 0.25) platformType = "bouncy";
-              else if (typeRoll < 0.5) platformType = "moving";
-              else if (typeRoll < 0.75) platformType = "vanishing";
-              else platformType = "crumbling";
+            // Use the remainder when dividing by 6 to create a repeating pattern
+            const pattern = platformCount % 6;
+            
+            // Phase 1: Introduce bouncy platforms more frequently (platforms #10-30)
+            if (platformCount < 30) {
+              // Use pattern: 4 regular, 1 bouncy, 1 regular - repeating
+              // This means every 6th platform will be bouncy
+              if (pattern === 4) {
+                platformType = "bouncy";
+              }
+            }
+            // Phase 2: Introduce bouncy and moving platforms (platforms #30-60)
+            else if (platformCount < 60) {
+              // For even-numbered cycles: 2 regular, 1 bouncy, 2 regular, 1 moving
+              if (Math.floor(platformCount / 6) % 2 === 0) {
+                if (pattern === 2) platformType = "bouncy";
+                else if (pattern === 5) platformType = "moving";
+              } 
+              // For odd-numbered cycles: alternate the pattern
+              else {
+                if (pattern === 1) platformType = "moving";
+                else if (pattern === 4) platformType = "bouncy";
+              }
+            }
+            // Phase 3: Add vanishing platforms to the mix (platforms #60-90)
+            else if (platformCount < 90) {
+              // Create more varied pattern with all three types
+              if (pattern === 1) platformType = "bouncy";
+              else if (pattern === 3) platformType = "moving";
+              else if (pattern === 5) platformType = "vanishing";
+            }
+            // Phase 4: Add crumbling platforms (platforms #90-120)
+            else if (platformCount < 120) {
+              // Even more varied pattern with all four platform types
+              if (pattern === 1) platformType = "bouncy";
+              else if (pattern === 2) platformType = "moving";
+              else if (pattern === 4) platformType = "vanishing";
+              else if (pattern === 5) platformType = "crumbling";
+            }
+            // Final phase: More randomized but still frequent special platforms
+            else {
+              // Base chance of a special platform increases with difficulty
+              const baseChance = lerp(0.4, 0.6, d);
               
-              // Create some specific challenging sequences 
-              // (pairs of the same type)
-              if (platforms.length > 0) {
-                const prevPlatform = platforms[platforms.length - 1];
-                if (prevPlatform.type !== "normal" && random() < 0.4) {
-                  // 40% chance to repeat the previous platform type
-                  platformType = prevPlatform.type;
+              // Ensure we have at least one special platform type every 3-4 platforms
+              // This creates a pattern of roughly: 2-3 normal, 1-2 special, repeating
+              if (pattern === 1 || pattern === 4 || (pattern === 2 && random() < baseChance)) {
+                // Choose platform type with weighted random selection
+                const typeRoll = random();
+                if (typeRoll < 0.25) platformType = "bouncy";
+                else if (typeRoll < 0.5) platformType = "moving";
+                else if (typeRoll < 0.75) platformType = "vanishing";
+                else platformType = "crumbling";
+                
+                // Occasionally create pairs of the same type for more challenge
+                if (platforms.length > 0) {
+                  const prevPlatform = platforms[platforms.length - 1];
+                  if (prevPlatform.type !== "normal" && random() < 0.3) {
+                    // 30% chance to repeat the previous platform type
+                    platformType = prevPlatform.type;
+                  }
                 }
               }
             }
@@ -480,10 +464,12 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
               platform.isVisible = true;
               break;
             case "moving":
-              platform.startY = newY;
-              platform.amplitude = random(20, 50);
-              platform.speed = random(0.02, 0.04);
+              platform.startX = xPos;
+              platform.amplitude = random(50, 120); // Wider horizontal movement range
+              platform.speed = random(0.01, 0.03);
               platform.phase = random(TWO_PI);
+              // Store original y-position for reference
+              platform.y = newY;
               break;
             case "bouncy":
               platform.bounceFactor = 1.3; // Jump 30% higher (was 70% higher)
@@ -1005,29 +991,29 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
               break;
               
             case "moving":
-              // Calculate vertical position based on sine wave
-              const vertOffset = sin(frameCount * p.speed + p.phase) * p.amplitude;
-              p.y = p.startY + vertOffset;
+              // Calculate horizontal position based on sine wave
+              const horizOffset = sin(frameCount * p.speed + p.phase) * p.amplitude;
+              p.x = p.startX + horizOffset;
               
               // Draw platform with slight trail effect
-              fill(p.color);
+              fill(color(80, 180, 255)); // Change color to blue for horizontal movement
               stroke(0, 0, 0, 30);
               strokeWeight(2);
               rect(p.x, p.y, p.w, p.h);
               
               // Add subtle movement trail particles
-              if (frameCount % 8 === 0 && abs(vertOffset) > p.amplitude * 0.6) {
-                const trailDir = vertOffset > 0 ? -1 : 1;
-                const edgeY = p.y + (trailDir > 0 ? 0 : p.h);
+              if (frameCount % 8 === 0 && abs(horizOffset) > p.amplitude * 0.6) {
+                const trailDir = horizOffset > 0 ? -1 : 1;
+                const edgeX = p.x + (trailDir > 0 ? 0 : p.w);
                 
                 // Add multiple particles for a better trail effect
                 for (let i = 0; i < 2; i++) {
                   particles.push({
-                    x: p.x + random(p.w),
-                    y: edgeY,
-                    vx: random(-0.2, 0.2),
-                    vy: trailDir * random(0.5, 1),
-                    color: color(200, 220, 255, 100),
+                    x: edgeX,
+                    y: p.y + random(p.h),
+                    vx: trailDir * random(0.5, 1),
+                    vy: random(-0.2, 0.2),
+                    color: color(150, 200, 255, 100),
                     size: random(2, 5),
                     life: 15,
                     maxLife: 15,
@@ -1036,18 +1022,18 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
                 }
                 
                 // Add occasional movement indicator when near max position
-                if (abs(vertOffset) > p.amplitude * 0.9 && random() < 0.2) {
+                if (abs(horizOffset) > p.amplitude * 0.9 && random() < 0.2) {
                   particles.push({
-                    x: p.x + p.w/2,
-                    y: p.y + (trailDir > 0 ? -15 : p.h + 15),
-                    vx: 0,
-                    vy: trailDir * -0.5,
+                    x: p.x + (trailDir > 0 ? -15 : p.w + 15),
+                    y: p.y + p.h/2,
+                    vx: trailDir * -0.5,
+                    vy: 0,
                     color: color(150, 220, 255),
                     size: 1,
                     life: 20,
                     maxLife: 20,
                     type: "text",
-                    text: trailDir > 0 ? "↑" : "↓",
+                    text: trailDir > 0 ? "←" : "→",
                     textSize: 12
                   });
                 }
@@ -1496,9 +1482,27 @@ function updateNoggles() {
         player.x += player.velocityX;
         platforms.forEach((p) => {
           if (isColliding(player, p)) {
-            if (player.velocityX > 0) player.x = p.x - player.width / 2;
-            else player.x = p.x + p.w + player.width / 2;
-            player.velocityX = 0;
+            // Handle moving platforms - player "rides" the platform horizontally
+            if (p.type === "moving" && player.isOnGround && player.y <= p.y) {
+              // Allow the player to be pushed by the moving platform
+              let platformVelocityX = 0;
+              
+              // Calculate the platform's current velocity based on its position change
+              if (p.prevX !== undefined) {
+                platformVelocityX = p.x - p.prevX;
+                
+                // Apply platform momentum to the player (reduced effect)
+                player.velocityX += platformVelocityX * 0.8;
+              }
+              
+              // Store platform's current position for next frame's velocity calculation
+              p.prevX = p.x;
+            } else {
+              // Normal collision handling for non-moving platforms or side collisions
+              if (player.velocityX > 0) player.x = p.x - player.width / 2;
+              else player.x = p.x + p.w + player.width / 2;
+              player.velocityX = 0;
+            }
           }
         });
         if (!player.isOnGround) coyoteTimer = max(coyoteTimer - 1, 0);
@@ -1747,17 +1751,15 @@ function updateNoggles() {
         textAlign(CENTER, TOP);
         text(`Score: ${score}`, width / 2, 10);
         
-        // Draw level section indicator
-        const levelSection = floor(player.x / (LEVEL_LENGTH / 7));
+        // Draw level section indicator with updated naming to match more varied level
+        const levelSection = floor(player.x / (LEVEL_LENGTH / 5));
         const sectionName = [
           "Starting Area", 
-          "Bouncy Intro", 
-          "Moving Platforms", 
-          "Vanishing Platforms", 
-          "Crumbling Zones", 
-          "Mixed Challenges",
-          "Final Stretch"
-        ][Math.min(levelSection, 6)];
+          "Bouncy Challenges", 
+          "Mixed Movement", 
+          "Tricky Terrain", 
+          "Master Challenge"
+        ][Math.min(levelSection, 4)];
         
         textSize(16);
         textAlign(CENTER, TOP);
@@ -1781,14 +1783,13 @@ function updateNoggles() {
           const iconY = 65;
           
           // Determine if this platform type is common in current section
+          // Updated to match our more varied level design with all platform types introduced earlier
           const isCommon = (
-            (levelSection === 0 && type === "normal") ||
-            (levelSection === 1 && (type === "normal" || type === "bouncy")) ||
-            (levelSection === 2 && (type === "normal" || type === "moving")) ||
-            (levelSection === 3 && (type === "normal" || type === "vanishing")) ||
-            (levelSection === 4 && (type === "normal" || type === "crumbling")) ||
-            (levelSection === 5 && (type === "normal" || type === "bouncy" || type === "moving" || type === "vanishing" || type === "crumbling")) ||
-            (levelSection === 6)
+            (levelSection === 0 && (type === "normal" || type === "bouncy")) ||
+            (levelSection === 1 && (type === "normal" || type === "bouncy" || type === "moving")) ||
+            (levelSection === 2 && (type === "normal" || type === "bouncy" || type === "moving" || type === "vanishing")) ||
+            (levelSection === 3 && (type === "normal" || type === "bouncy" || type === "moving" || type === "vanishing" || type === "crumbling")) ||
+            (levelSection === 4) // All platforms are common in the final section
           );
           
           // Draw platform icon
@@ -1806,10 +1807,10 @@ function updateNoggles() {
                 text("↑", iconX, iconY + 6);
                 break;
               case "moving":
-                fill(180, 180, 255);
+                fill(80, 180, 255); // Match the updated blue color
                 rect(iconX, iconY, iconSize, iconSize/3);
                 fill(255);
-                text("↕", iconX, iconY + 6);
+                text("↔", iconX, iconY + 6); // Change to horizontal arrow
                 break;
               case "vanishing":
                 // Pulsing effect
@@ -1897,10 +1898,10 @@ function updateNoggles() {
         text("Bouncy platforms - jump higher!", platformInfoX + 40, height/2);
         
         // Moving platforms
-        fill(180, 180, 255);
+        fill(80, 180, 255);
         rect(platformInfoX, height/2 + 20, 30, 10);
         fill("#FFFFFF");
-        text("Moving platforms - float up & down", platformInfoX + 40, height/2 + 25);
+        text("Moving platforms - slide left & right", platformInfoX + 40, height/2 + 25);
         
         // Vanishing platforms
         drawingContext.globalAlpha = 0.6;
