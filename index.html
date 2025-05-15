@@ -477,9 +477,12 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
       }
 
       function updateCamera() {
-        const tx = player.x - width / 3;
+        // Show more horizontal space by moving camera back
+        const tx = player.x - width * 0.4; // Was 1/3, now 0.4 to show more space
         cameraX = constrain(lerp(cameraX, tx, 0.1), 0, max(levelWidth - width, 0));
-        const dy = player.y - height / 2;
+        
+        // Show more vertical space by adjusting the vertical position
+        const dy = player.y - height * 0.55; // Was 1/2, now 0.55 to show more above player
         cameraY = min(dy, initialCameraY);
       }
 
@@ -1042,8 +1045,11 @@ function updateNoggles() {
         const frame = a.frameIndex % ANIMATION_DEFS[a.currentSet].frames;
         const sx = (map.startFrame + frame) * FRAME_WIDTH;
         const sy = map.row * FRAME_HEIGHT;
-        const dw = FRAME_WIDTH * 3;
-        const dh = FRAME_HEIGHT * 3;
+        
+        // Scale down from 3x to 2.5x for better viewport usage
+        const scale = 2.5;
+        const dw = FRAME_WIDTH * scale;
+        const dh = FRAME_HEIGHT * scale;
         
         push();
         translate(player.x, player.y);
