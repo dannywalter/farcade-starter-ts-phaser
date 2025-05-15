@@ -215,6 +215,7 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
       let noggles = [],
         things = [],
         score = 0;
+      let particles = [];
       let platforms = [],
         goal,
         levelWidth,
@@ -362,15 +363,19 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
           color: activeBrightPalette[floor(random(activeBrightPalette.length))],
         };
 
-        const topOfViewport = player.y - height / 2;
+        // Get player's current viewport for determining thing positions
+        const playerViewportTop = player.y - height / 2;
+        
         things = platforms
           .filter((_, i) => i % 3 === 0)
           .map((p) => {
-            // compute spawn x/y exactly as before
+            // compute spawn x position randomly on the platform
             const tx = random(p.x + 10, p.x + p.w - 10);
-            const rawY = topOfViewport + random(50, 150);
-            const maxY = p.y - THING_BASE_SIZE / 2 - 5;
-            const ty = min(rawY, maxY);
+            
+            // Always position things relative to player viewport (60-200px above player's head)
+            const minY = playerViewportTop + 60;
+            const maxY = playerViewportTop + 200;
+            const ty = random(minY, maxY);
 
             // pick a random frame index
             const idx = floor(random(loadedThingImgs.length));
@@ -478,6 +483,37 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
         cameraY = min(dy, initialCameraY);
       }
 
+      function updateAndDrawParticles() {
+        push();
+        translate(-cameraX, -cameraY);
+        noStroke();
+        
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.2; // Gravity
+          p.life -= 1;
+          
+          if (p.life <= 0) {
+            particles.splice(i, 1);
+            continue;
+          }
+          
+          const alpha = map(p.life, 0, 20, 0, 255);
+          fill(red(p.color), green(p.color), blue(p.color), alpha);
+          circle(p.x, p.y, p.size);
+          
+          // Draw text if particle has text property
+          if (p.text) {
+            fill(255, alpha);
+            textSize(10);
+            text(p.text, p.x, p.y - 10);
+          }
+        }
+        pop();
+      }
+
       function drawGameScene() {
         push();
         translate(-cameraX, -cameraY);
@@ -487,6 +523,9 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
         drawPlayer();
         drawNoggles();
         pop();
+        
+        // Draw particles after everything else
+        updateAndDrawParticles();
         
         // Draw tag timer effects after everything else
         if (gameState === "playing") {
@@ -627,25 +666,91 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
       function drawNoggles() {
         imageMode(CENTER);
         noggles.forEach((n) => {
+          // Draw trail for active noggles
+          if (n.hasTrail && frameCount % 2 === 0) {
+            particles.push({
+              x: n.x,
+              y: n.y,
+              vx: -n.vx * 0.1,
+              vy: -n.vy * 0.1,
+              size: random(3, 8),
+              life: random(8, 15),
+              color: n.trailColor || color(255, 50, 50, 100)
+            });
+          }
+          
           push();
           translate(n.x, n.y);
           rotate(n.angle);
           const sz = n.r * 10;
+          
+          // Add glow effect for noggles in flight
+          if (n.hasTrail) {
+            drawingContext.shadowBlur = 15;
+            drawingContext.shadowColor = 'rgba(255, 50, 50, 0.5)';
+          }
+          
           image(noggleImg, 0, 0, sz, sz);
           pop();
         });
       }
 
-      function updateNoggles() {
+      // Helper function for distance calculation
+function distToRectangle(px, py, rx, ry, rw, rh) {
+  const nearestX = max(rx, min(px, rx + rw));
+  const nearestY = max(ry, min(py, ry + rh));
+  return dist(px, py, nearestX, nearestY);
+}
+
+function updateNoggles() {
         for (let i = noggles.length - 1; i >= 0; i--) {
           const n = noggles[i];
           n.vy += NOGGLE_GRAVITY;
           n.x += n.vx;
           n.y += n.vy;
           n.angle += n.angularVelocity;
-          // platform collision
+          
+          // Check for near misses with platforms (within 15px)
           for (const p of platforms) {
+            const distToPlat = distToRectangle(n.x, n.y, p.x, p.y, p.w, p.h);
+            
+            if (distToPlat < 15 && distToPlat > 0) {
+              // This is a near miss! Create "so close" particles
+              for (let j = 0; j < 5; j++) {
+                particles.push({
+                  x: n.x,
+                  y: n.y,
+                  vx: random(-1, 1),
+                  vy: random(-2, -0.5),
+                  size: 3,
+                  life: random(20, 30),
+                  color: color(255, 255, 100, 200),
+                  text: "Close!"
+                });
+              }
+            }
+            
+            // Regular collision check
             if (n.x > p.x && n.x < p.x + p.w && n.y > p.y && n.y < p.h) {
+              // Create satisfying burst particles
+              for (let j = 0; j < 20; j++) {
+                const ang = random(TWO_PI);
+                particles.push({
+                  x: n.x,
+                  y: n.y,
+                  vx: cos(ang) * random(1, 4),
+                  vy: sin(ang) * random(1, 4),
+                  size: random(3, 8),
+                  life: random(15, 30),
+                  color: color(
+                    random(200, 255),
+                    random(100, 200),
+                    random(50, 150),
+                    200
+                  )
+                });
+              }
+              
               p.color = activeBrightPalette[floor(random(activeBrightPalette.length))];
               if (window.FarcadeSDK?.singlePlayer) {
                 window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
@@ -654,18 +759,54 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
               break;
             }
           }
-          // thing collision
+          
+          // Similar near-miss detection for things
           for (const t of things) {
-            if (
-              !t.collected &&
-              n.x > t.x - t.size / 2 &&
-              n.x < t.x + t.size / 2 &&
-              n.y > t.y - t.size / 2 &&
-              n.y < t.y + t.size / 2
-            ) {
+            const distToThing = dist(n.x, n.y, t.x, t.y) - (t.size / 2);
+            
+            // Near miss feedback for things
+            if (!t.collected && distToThing < 20 && distToThing > 0) {
+              // This is a near miss with a thing!
+              for (let j = 0; j < 3; j++) {
+                particles.push({
+                  x: n.x,
+                  y: n.y,
+                  vx: random(-1, 1),
+                  vy: random(-2, -0.5),
+                  size: 3,
+                  life: random(20, 30),
+                  color: color(255, 200, 100, 200),
+                  text: "Almost!"
+                });
+              }
+            }
+            
+            // thing collision - keep existing code but add particle effects
+            if (!t.collected &&
+                n.x > t.x - t.size / 2 &&
+                n.x < t.x + t.size / 2 &&
+                n.y > t.y - t.size / 2 &&
+                n.y < t.y + t.size / 2) {
+                  
+              // Create colorful burst on collection
+              for (let j = 0; j < 25; j++) {
+                const ang = random(TWO_PI);
+                const dist = random(5, 15);
+                particles.push({
+                  x: t.x + cos(ang) * dist,
+                  y: t.y + sin(ang) * dist,
+                  vx: cos(ang) * random(1, 5),
+                  vy: sin(ang) * random(-5, 1),
+                  size: random(5, 10),
+                  life: random(20, 40),
+                  color: color(random(100, 255), random(100, 255), random(100, 255))
+                });
+              }
+              
+              // Existing collection logic
               t.collected = true;
               score += 10;
-              tagTimer = TAG_TIMER_MAX; // Reset timer when successfully nounifying
+              tagTimer = TAG_TIMER_MAX;
               if (window.FarcadeSDK?.singlePlayer) {
                 window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
               }
@@ -673,6 +814,7 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
               break;
             }
           }
+          
           // out of bounds
           if (n.y > cameraY + height * 2) {
             noggles.splice(i, 1);
@@ -739,8 +881,23 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
           coyoteTimer = 0;
           jumpBufferTimer = 0;
           
-          // Add jump squash/stretch animation
-          player.jumpSquash = 1;
+          // Enhanced jump squash/stretch animation
+          player.jumpSquash = 1.5; // Increased squash for more visual feedback
+          
+          // Add jump particles for visual feedback
+          for (let i = 0; i < 8; i++) {
+            const angle = random(PI/4, 3*PI/4);
+            const speed = random(1, 3);
+            particles.push({
+              x: player.x,
+              y: player.y + player.height/2,
+              vx: cos(angle) * speed * (random() > 0.5 ? -1 : 1),
+              vy: -sin(angle) * speed,
+              size: random(2, 5),
+              life: random(10, 20),
+              color: color(255, 255, 255, 180)
+            });
+          }
           
           if (window.FarcadeSDK?.singlePlayer) {
             window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
@@ -1163,7 +1320,10 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
         const dx = cos(angle) * speed;
         const dy = sin(angle) * speed;
         
-        // Create throw with proper initial velocity
+        // Add trail particles for the noggle
+        const noggleColor = color(255, 50, 50, 150);
+        
+        // Create throw with proper initial velocity and enhanced properties
         noggles.push({
           x: wsx,
           y: wsy,
@@ -1171,12 +1331,29 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
           vy: dy,
           r: 10,
           angle: angle, // Start at angle of throw
-          angularVelocity: random(-0.2, 0.2),
-          throwFrame: frameCount // Track when thrown for effects
+          angularVelocity: random(-0.3, 0.3), // More rotation variation
+          throwFrame: frameCount, // Track when thrown for effects
+          hasTrail: true, // Flag to enable particle trail
+          trailColor: noggleColor // Store the trail color
         });
         
-        // Add throw animation to player
-        player.throwSquash = 1;
+        // Add throw animation to player with more dramatic effect
+        player.throwSquash = 1.5; // Increased for more visual impact
+        
+        // Create throw particles
+        for (let i = 0; i < 12; i++) {
+          const particleAngle = angle + random(-0.5, 0.5);
+          const particleSpeed = random(1, 5);
+          particles.push({
+            x: wsx,
+            y: wsy,
+            vx: cos(particleAngle) * particleSpeed,
+            vy: sin(particleAngle) * particleSpeed,
+            size: random(2, 6),
+            life: random(10, 25),
+            color: noggleColor
+          });
+        }
         
         // Provide feedback
         if (window.FarcadeSDK?.singlePlayer) {
