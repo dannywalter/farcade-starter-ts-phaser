@@ -98,13 +98,92 @@ body {
   -moz-user-drag: none;
   user-drag: none;
 }
+      /* Custom loading screen styles */
       .p5_loading {
-        display: none !important;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex !important;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background: #63A0F9;
+        z-index: 1000;
+        color: white;
+        font-family: Arial, sans-serif;
+      }
+      
+      .loading-title {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+      }
+      
+      .loading-bar-container {
+        width: 80%;
+        height: 20px;
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      
+      .loading-bar {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(to right, #FFC110, #FF1AD2);
+        border-radius: 10px;
+        transition: width 0.3s ease;
+      }
+      
+      .loading-text {
+        margin-top: 0.5rem;
+        font-size: 1rem;
+      }
+      
+      /* Loading animation */
+      @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+      }
+      
+      .loading-character {
+        margin: 20px 0;
+        animation: bounce 1.5s infinite ease-in-out;
+      }
+      
+      /* Fade-out transition when loaded */
+      .p5_loading {
+        transition: opacity 0.5s ease-out;
+      }
+      
+      .p5_loading.loaded {
+        opacity: 0;
       }
     </style>
   </head>
   <body>
-    <div class="game-container" id="game-container"></div>
+    <div class="game-container" id="game-container">
+      <!-- Custom loading screen -->
+      <div id="p5_loading" class="p5_loading">
+        <div class="loading-title">PLATFORMER ADVENTURE</div>
+        <div class="loading-character">
+          <!-- Simple character placeholder -->
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="8" width="28" height="32" rx="4" fill="#FFD700"/>
+            <circle cx="20" cy="20" r="4" fill="#000"/>
+            <circle cx="28" cy="20" r="4" fill="#000"/>
+            <path d="M18 30C20 34 28 34 30 30" stroke="#000" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="loading-bar-container">
+          <div id="loading-progress-bar" class="loading-bar"></div>
+        </div>
+        <div id="loading-text" class="loading-text">Loading game assets...</div>
+      </div>
+    </div>
     <script>
       // ── STATE‑WATCHER SETUP ──
       let _prevState = "";
@@ -118,6 +197,9 @@ body {
 
       // Custom map function to ensure it's available even if p5.js map function isn't
       function customMap(value, start1, stop1, start2, stop2) {
+        // Make sure we don't divide by zero
+        if (stop1 === start1) return start2;
+        // Calculate the mapped value using the correct formula
         return start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));
       }
 
@@ -205,9 +287,9 @@ body {
       
       // Define zones for platform introductions (as percentages of the total level length)
       const INTRO_ZONES = {
-        normal: { start: 0, end: 0.1 },     // First 10% - only normal platforms
-        bouncy: { start: 0.1, end: 0.25 },  // 10-25% - introduce bouncy
-        moving: { start: 0.25, end: 0.45 }, // 25-45% - introduce moving
+        normal: { start: 0, end: 0.01 },     // First 10% - only normal platforms
+        bouncy: { start: 0.01, end: 0.15 },  // 10-25% - introduce bouncy
+        moving: { start: 0.15, end: 0.45 }, // 25-45% - introduce moving
         vanishing: { start: 0.45, end: 0.7 }, // 45-70% - introduce vanishing
         crumbling: { start: 0.7, end: 0.9 }, // 70-90% - introduce crumbling
         mixed: { start: 0.9, end: 1.0 }     // Final 10% - mix everything
@@ -297,20 +379,61 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
       };
 
       let titleBg;
+      // Track loading progress
+      let loadingProgress = 0;
+      let totalAssets = 5; // Total number of assets to load
+      let assetsLoaded = 0;
+
+      // Function to update the loading progress UI
+      function updateLoadingProgress(increment = 1) {
+        assetsLoaded += increment;
+        loadingProgress = (assetsLoaded / totalAssets) * 100;
+        
+        // Update the loading bar
+        const progressBar = document.getElementById('loading-progress-bar');
+        const loadingText = document.getElementById('loading-text');
+        
+        if (progressBar) {
+          progressBar.style.width = loadingProgress + '%';
+        }
+        
+        if (loadingText) {
+          if (loadingProgress < 100) {
+            loadingText.textContent = `Loading game assets... ${Math.floor(loadingProgress)}%`;
+          } else {
+            loadingText.textContent = 'Ready to play!';
+          }
+        }
+      }
 
       function preload() {
+        // Start by showing zero progress
+        updateLoadingProgress(0);
+        
+        // Load each asset with a callback to update progress
         nounSpriteSheet = loadImage(
           "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/myNounsSpritesheet_003-ymLtEkBrlNZMQkj37npozrPDdamMbF.png",
+          () => updateLoadingProgress()
         );
+        
         noggleImg = loadImage(
           "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/glasses-square-red-ge40H7EEizX6BtKLM99M270Y9htR9s.png",
+          () => updateLoadingProgress()
         );
+        
         cloudImg = loadImage(
           "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/head-cloud-i9zXsgKYOqRd5S0VjKaziZYVDtZbmf.png",
+          () => updateLoadingProgress()
         );
-        thingSpriteSheet = loadImage(SPRITE_SHEET_URL);
+        
+        thingSpriteSheet = loadImage(
+          SPRITE_SHEET_URL,
+          () => updateLoadingProgress()
+        );
+        
         titleBg = loadImage(
           "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/nounifyTheWorldTitle_1-0Wbv9O9w8f1mM12NI9CssOfFIRXlKt.png",
+          () => updateLoadingProgress()
         );
       }
 
@@ -320,7 +443,7 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
         cnv.elt.removeAttribute("style");
 
         // Add this line to make the canvas focusable
-  cnv.elt.setAttribute('tabindex', '0');
+        cnv.elt.setAttribute('tabindex', '0');
   
         // Initially focus the canvas to ensure keyboard input works from the start
         cnv.elt.focus();
@@ -335,36 +458,78 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
           // Reset any potentially stuck keys by using the keyTracker
           document.querySelector('canvas').focus();
         });
+        
+        // Make sure loading screen is properly hidden
+        const loadingScreen = document.getElementById('p5_loading');
+        if (loadingScreen) {
+          // Add a "loaded" class for smooth transition
+          loadingScreen.classList.add('loaded');
+          
+          // Then remove the element after transition completes
+          setTimeout(() => {
+            loadingScreen.style.display = 'none';
+          }, 500);
+        }
 
         noSmooth();
         textAlign(CENTER, CENTER);
         imageMode(CENTER);
         colorMode(RGB, 255);
 
-        // split the sprite sheet into 60 individual frames
-        // Modified loading code
-for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
-  // Calculate row and column from index
-  const col = i % THING_FRAMES_PER_ROW;
-  const row = Math.floor(i / THING_FRAMES_PER_ROW);
-  
-  // Get frame from correct position in sprite sheet
-  let frame = thingSpriteSheet.get(
-    col * THING_FRAME_SIZE,
-    row * THING_FRAME_SIZE,
-    THING_FRAME_SIZE,
-    THING_FRAME_SIZE
-  );
-  
-  loadedThingImgs.push(frame);
-}
-        // generate grayscale copies
-        loadedThingImgs.forEach((img) => {
+        // Implement lazy loading for sprite frames to improve startup time
+        // Only process essential frames initially, then load the rest in the background
+        const INITIAL_FRAMES_TO_LOAD = 20; // Load just enough frames to start the game
+        
+        // Process initial frames synchronously for immediate start
+        for (let i = 0; i < Math.min(INITIAL_FRAMES_TO_LOAD, TOTAL_THING_FRAMES); i++) {
+          processThingFrame(i);
+        }
+        
+        // Set up a background process to load the rest of the frames gradually
+        if (TOTAL_THING_FRAMES > INITIAL_FRAMES_TO_LOAD) {
+          let currentFrame = INITIAL_FRAMES_TO_LOAD;
+          
+          const processRemainingFrames = () => {
+            const startTime = performance.now();
+            const MAX_PROCESSING_TIME = 10; // Process frames for max 10ms per frame
+            
+            while (currentFrame < TOTAL_THING_FRAMES && performance.now() - startTime < MAX_PROCESSING_TIME) {
+              processThingFrame(currentFrame);
+              currentFrame++;
+            }
+            
+            if (currentFrame < TOTAL_THING_FRAMES) {
+              // If we still have frames to process, continue in the next frame
+              requestAnimationFrame(processRemainingFrames);
+            }
+          };
+          
+          // Start background processing
+          setTimeout(processRemainingFrames, 500);
+        }
+        
+        // Function to process a single thing frame
+        function processThingFrame(i) {
+          // Calculate row and column from index
+          const col = i % THING_FRAMES_PER_ROW;
+          const row = Math.floor(i / THING_FRAMES_PER_ROW);
+          
+          // Get frame from correct position in sprite sheet
+          let frame = thingSpriteSheet.get(
+            col * THING_FRAME_SIZE,
+            row * THING_FRAME_SIZE,
+            THING_FRAME_SIZE,
+            THING_FRAME_SIZE
+          );
+          
+          loadedThingImgs[i] = frame;
+          
+          // Generate grayscale copy
           let g = createGraphics(THING_FRAME_SIZE, THING_FRAME_SIZE);
-          g.image(img, 0, 0);
+          g.image(frame, 0, 0);
           g.filter(GRAY);
-          loadedThingGrayImgs.push(g.get());
-        });
+          loadedThingGrayImgs[i] = g.get();
+        }
 
         initializeGame();
         initialCameraY = player.y - height / 2;
