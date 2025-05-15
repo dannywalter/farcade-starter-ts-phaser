@@ -11,93 +11,94 @@
     <script src="https://cdn.jsdelivr.net/npm/@farcade/game-sdk@latest/dist/index.min.js"></script>
     <!-- Keyboard Input Tracker (Inline) -->
     <script>
-    // KeyTracker - A simple module to track key states regardless of canvas focus
-    class KeyTracker {
-      constructor() {
-        this.keys = {};
-        this._setupEventListeners();
-      }
-
-      // Set up global keyboard listeners
-      _setupEventListeners() {
-        // Track key down events
-        window.addEventListener('keydown', (e) => {
-          this.keys[e.keyCode] = true;
-          this.keys[e.key.toLowerCase()] = true;
-        });
-
-        // Track key up events
-        window.addEventListener('keyup', (e) => {
-          this.keys[e.keyCode] = false;
-          this.keys[e.key.toLowerCase()] = false;
-        });
-
-        // Clear keys when window loses focus
-        window.addEventListener('blur', () => {
+      // KeyTracker - A simple module to track key states regardless of canvas focus
+      class KeyTracker {
+        constructor() {
           this.keys = {};
-        });
-      }
-
-      // Check if a key is pressed
-      isKeyDown(keyCode) {
-        // Accept either key codes or key strings
-        if (typeof keyCode === 'string') {
-          return this.keys[keyCode.toLowerCase()] === true;
+          this._setupEventListeners();
         }
-        return this.keys[keyCode] === true;
-      }
-    }
 
-    // Create a singleton instance
-    const keyTracker = new KeyTracker();
+        // Set up global keyboard listeners
+        _setupEventListeners() {
+          // Track key down events
+          window.addEventListener("keydown", (e) => {
+            this.keys[e.keyCode] = true;
+            this.keys[e.key.toLowerCase()] = true;
+          });
+
+          // Track key up events
+          window.addEventListener("keyup", (e) => {
+            this.keys[e.keyCode] = false;
+            this.keys[e.key.toLowerCase()] = false;
+          });
+
+          // Clear keys when window loses focus
+          window.addEventListener("blur", () => {
+            this.keys = {};
+          });
+        }
+
+        // Check if a key is pressed
+        isKeyDown(keyCode) {
+          // Accept either key codes or key strings
+          if (typeof keyCode === "string") {
+            return this.keys[keyCode.toLowerCase()] === true;
+          }
+          return this.keys[keyCode] === true;
+        }
+      }
+
+      // Create a singleton instance
+      const keyTracker = new KeyTracker();
     </script>
     <style>
-      html, body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background: #333;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: none;
-  -ms-touch-action: none;
-}
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #333;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: none;
+        -ms-touch-action: none;
+      }
 
-body {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
 
-.game-container {
-  width: 100%;
-  max-width: 500px;
-  aspect-ratio: 500/800;
-  position: relative;
-}
+      .game-container {
+        width: 100%;
+        max-width: 500px;
+        aspect-ratio: 500/800;
+        position: relative;
+      }
 
-.game-container canvas {
-  width: 100%;
-  height: 100%;
-  display: block;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: none;
-  -ms-touch-action: none;
-}
+      .game-container canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: none;
+        -ms-touch-action: none;
+      }
 
-/* Prevent text selection via dragging */
-* {
-  -webkit-user-drag: none;
-  -moz-user-drag: none;
-  user-drag: none;
-}
+      /* Prevent text selection via dragging */
+      * {
+        -webkit-user-drag: none;
+        -moz-user-drag: none;
+        user-drag: none;
+      }
       /* Custom loading screen styles */
       .p5_loading {
         position: absolute;
@@ -109,19 +110,19 @@ body {
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        background: #63A0F9;
+        background: #63a0f9;
         z-index: 1000;
         color: white;
         font-family: Arial, sans-serif;
       }
-      
+
       .loading-title {
         font-size: 2.5rem;
         font-weight: bold;
         margin-bottom: 1rem;
         text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
       }
-      
+
       .loading-bar-container {
         width: 80%;
         height: 20px;
@@ -129,36 +130,41 @@ body {
         border-radius: 10px;
         overflow: hidden;
       }
-      
+
       .loading-bar {
         height: 100%;
         width: 0%;
-        background: linear-gradient(to right, #FFC110, #FF1AD2);
+        background: linear-gradient(to right, #ffc110, #ff1ad2);
         border-radius: 10px;
         transition: width 0.3s ease;
       }
-      
+
       .loading-text {
         margin-top: 0.5rem;
         font-size: 1rem;
       }
-      
+
       /* Loading animation */
       @keyframes bounce {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-10px); }
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-10px);
+        }
       }
-      
+
       .loading-character {
         margin: 20px 0;
         animation: bounce 1.5s infinite ease-in-out;
       }
-      
+
       /* Fade-out transition when loaded */
       .p5_loading {
         transition: opacity 0.5s ease-out;
       }
-      
+
       .p5_loading.loaded {
         opacity: 0;
       }
@@ -172,10 +178,10 @@ body {
         <div class="loading-character">
           <!-- Simple character placeholder -->
           <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="10" y="8" width="28" height="32" rx="4" fill="#FFD700"/>
-            <circle cx="20" cy="20" r="4" fill="#000"/>
-            <circle cx="28" cy="20" r="4" fill="#000"/>
-            <path d="M18 30C20 34 28 34 30 30" stroke="#000" stroke-width="2" stroke-linecap="round"/>
+            <rect x="10" y="8" width="28" height="32" rx="4" fill="#FFD700" />
+            <circle cx="20" cy="20" r="4" fill="#000" />
+            <circle cx="28" cy="20" r="4" fill="#000" />
+            <path d="M18 30C20 34 28 34 30 30" stroke="#000" stroke-width="2" stroke-linecap="round" />
           </svg>
         </div>
         <div class="loading-bar-container">
@@ -187,11 +193,11 @@ body {
     <script>
       // ── STATE‑WATCHER SETUP ──
       let _prevState = "";
-      
+
       // Debounce for throw mechanic
       let lastThrowTime = 0;
       const THROW_COOLDOWN = 300; // milliseconds between throws
-      
+
       // Track which touch/click events have already been processed
       let activeTouchIds = {};
 
@@ -234,7 +240,7 @@ body {
             console.log("[DEBUG] ✱ gameState set → playing");
 
             // Add this line to restore focus to the canvas after reset
-      document.querySelector('canvas').focus();
+            document.querySelector("canvas").focus();
           });
         });
 
@@ -280,19 +286,19 @@ body {
       const MAX_GAP = 245;
       const DIFFICULTY_SCALE = 5;
       const PLAYER_MAX_JUMP_DIST = 320;
-      const PLAYER_MAX_JUMP_HEIGHT = 180;
+      const PLAYER_MAX_JUMP_HEIGHT = 190;
       const NOGGLE_MAX_DISTANCE = 300;
       const NOGGLE_MAX_SPEED = 20;
       const NOGGLE_GRAVITY = 0.45;
-      
+
       // Define zones for platform introductions (as percentages of the total level length)
       const INTRO_ZONES = {
-        normal: { start: 0, end: 0.01 },     // First 10% - only normal platforms
-        bouncy: { start: 0.01, end: 0.15 },  // 10-25% - introduce bouncy
-        moving: { start: 0.15, end: 0.45 }, // 25-45% - introduce moving
-        vanishing: { start: 0.45, end: 0.7 }, // 45-70% - introduce vanishing
-        crumbling: { start: 0.7, end: 0.9 }, // 70-90% - introduce crumbling
-        mixed: { start: 0.9, end: 1.0 }     // Final 10% - mix everything
+        normal: { start: 0, end: 0.01 }, // First 10% - only normal platforms
+        bouncy: { start: 0.01, end: 0.05 }, // 10-25% - introduce bouncy
+        moving: { start: 0.05, end: 0.1 }, // 25-45% - introduce moving
+        vanishing: { start: 0.1, end: 0.15 }, // 45-70% - introduce vanishing
+        crumbling: { start: 0.2, end: 0.25 }, // 70-90% - introduce crumbling
+        mixed: { start: 0.25, end: 1.0 }, // Final 10% - mix everything
       };
 
       const brightPalettes = {
@@ -309,7 +315,7 @@ body {
       const THING_BASE_SIZE = 120;
       const THING_BOB_AMPLITUDE = 10;
       const THING_BOB_SPEED = 0.05;
-      
+
       // Tag-or-Die game mechanic
       const TAG_TIMER_MAX = 600; // 10 seconds at 60fps
       const TAG_TIMER_WARNING = 300; // 5 seconds warning threshold
@@ -318,9 +324,9 @@ body {
       const SPRITE_SHEET_URL =
         "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/onh1WvDi9ayO/spritesheet_things_80-9rfYZQa73Ra9GHwbdGiB8jH5oZuOnm.png";
       const THING_FRAME_SIZE = 64;
-const THING_FRAMES_PER_ROW = 20;
-const TOTAL_THING_ROWS = 4;
-const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
+      const THING_FRAMES_PER_ROW = 20;
+      const TOTAL_THING_ROWS = 4;
+      const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
 
       // animation constants
       const FRAME_WIDTH = 48,
@@ -360,22 +366,22 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
       let coyoteTimer = 0,
         jumpBufferTimer = 0,
         tagTimer = TAG_TIMER_MAX,
-        previousJumpState = false;  // Track jump button state for edge detection
-      
+        previousJumpState = false; // Track jump button state for edge detection
+
       // Help system for platform types
       let helpTexts = {
         crumbling: { shown: false, text: "NEW! Crumbling platforms fall after you step on them!" },
         vanishing: { shown: false, text: "NEW! Vanishing platforms appear and disappear!" },
         moving: { shown: false, text: "NEW! These blue platforms move left and right!" },
-        bouncy: { shown: false, text: "NEW! Yellow platforms give you an extra boost!" }
+        bouncy: { shown: false, text: "NEW! Yellow platforms give you an extra boost!" },
       };
-      
+
       // Track if each platform type has had a tutorial platform
       let tutorialShown = {
         crumbling: false,
         vanishing: false,
         moving: false,
-        bouncy: false
+        bouncy: false,
       };
 
       let titleBg;
@@ -388,20 +394,20 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
       function updateLoadingProgress(increment = 1) {
         assetsLoaded += increment;
         loadingProgress = (assetsLoaded / totalAssets) * 100;
-        
+
         // Update the loading bar
-        const progressBar = document.getElementById('loading-progress-bar');
-        const loadingText = document.getElementById('loading-text');
-        
+        const progressBar = document.getElementById("loading-progress-bar");
+        const loadingText = document.getElementById("loading-text");
+
         if (progressBar) {
-          progressBar.style.width = loadingProgress + '%';
+          progressBar.style.width = loadingProgress + "%";
         }
-        
+
         if (loadingText) {
           if (loadingProgress < 100) {
             loadingText.textContent = `Loading game assets... ${Math.floor(loadingProgress)}%`;
           } else {
-            loadingText.textContent = 'Ready to play!';
+            loadingText.textContent = "Ready to play!";
           }
         }
       }
@@ -409,31 +415,28 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
       function preload() {
         // Start by showing zero progress
         updateLoadingProgress(0);
-        
+
         // Load each asset with a callback to update progress
         nounSpriteSheet = loadImage(
           "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/myNounsSpritesheet_003-ymLtEkBrlNZMQkj37npozrPDdamMbF.png",
-          () => updateLoadingProgress()
+          () => updateLoadingProgress(),
         );
-        
+
         noggleImg = loadImage(
           "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/glasses-square-red-ge40H7EEizX6BtKLM99M270Y9htR9s.png",
-          () => updateLoadingProgress()
+          () => updateLoadingProgress(),
         );
-        
+
         cloudImg = loadImage(
           "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/head-cloud-i9zXsgKYOqRd5S0VjKaziZYVDtZbmf.png",
-          () => updateLoadingProgress()
+          () => updateLoadingProgress(),
         );
-        
-        thingSpriteSheet = loadImage(
-          SPRITE_SHEET_URL,
-          () => updateLoadingProgress()
-        );
-        
+
+        thingSpriteSheet = loadImage(SPRITE_SHEET_URL, () => updateLoadingProgress());
+
         titleBg = loadImage(
           "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/nounifyTheWorldTitle_1-0Wbv9O9w8f1mM12NI9CssOfFIRXlKt.png",
-          () => updateLoadingProgress()
+          () => updateLoadingProgress(),
         );
       }
 
@@ -443,31 +446,31 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
         cnv.elt.removeAttribute("style");
 
         // Add this line to make the canvas focusable
-        cnv.elt.setAttribute('tabindex', '0');
-  
+        cnv.elt.setAttribute("tabindex", "0");
+
         // Initially focus the canvas to ensure keyboard input works from the start
         cnv.elt.focus();
-        
+
         // Handle canvas click events to ensure focus is regained
-        cnv.elt.addEventListener('click', function() {
+        cnv.elt.addEventListener("click", function () {
           cnv.elt.focus();
         });
-        
+
         // Add event for window focus to prevent stuck keys
-        window.addEventListener('focus', function() {
+        window.addEventListener("focus", function () {
           // Reset any potentially stuck keys by using the keyTracker
-          document.querySelector('canvas').focus();
+          document.querySelector("canvas").focus();
         });
-        
+
         // Make sure loading screen is properly hidden
-        const loadingScreen = document.getElementById('p5_loading');
+        const loadingScreen = document.getElementById("p5_loading");
         if (loadingScreen) {
           // Add a "loaded" class for smooth transition
-          loadingScreen.classList.add('loaded');
-          
+          loadingScreen.classList.add("loaded");
+
           // Then remove the element after transition completes
           setTimeout(() => {
-            loadingScreen.style.display = 'none';
+            loadingScreen.style.display = "none";
           }, 500);
         }
 
@@ -479,51 +482,51 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
         // Implement lazy loading for sprite frames to improve startup time
         // Only process essential frames initially, then load the rest in the background
         const INITIAL_FRAMES_TO_LOAD = 20; // Load just enough frames to start the game
-        
+
         // Process initial frames synchronously for immediate start
         for (let i = 0; i < Math.min(INITIAL_FRAMES_TO_LOAD, TOTAL_THING_FRAMES); i++) {
           processThingFrame(i);
         }
-        
+
         // Set up a background process to load the rest of the frames gradually
         if (TOTAL_THING_FRAMES > INITIAL_FRAMES_TO_LOAD) {
           let currentFrame = INITIAL_FRAMES_TO_LOAD;
-          
+
           const processRemainingFrames = () => {
             const startTime = performance.now();
             const MAX_PROCESSING_TIME = 10; // Process frames for max 10ms per frame
-            
+
             while (currentFrame < TOTAL_THING_FRAMES && performance.now() - startTime < MAX_PROCESSING_TIME) {
               processThingFrame(currentFrame);
               currentFrame++;
             }
-            
+
             if (currentFrame < TOTAL_THING_FRAMES) {
               // If we still have frames to process, continue in the next frame
               requestAnimationFrame(processRemainingFrames);
             }
           };
-          
+
           // Start background processing
           setTimeout(processRemainingFrames, 500);
         }
-        
+
         // Function to process a single thing frame
         function processThingFrame(i) {
           // Calculate row and column from index
           const col = i % THING_FRAMES_PER_ROW;
           const row = Math.floor(i / THING_FRAMES_PER_ROW);
-          
+
           // Get frame from correct position in sprite sheet
           let frame = thingSpriteSheet.get(
             col * THING_FRAME_SIZE,
             row * THING_FRAME_SIZE,
             THING_FRAME_SIZE,
-            THING_FRAME_SIZE
+            THING_FRAME_SIZE,
           );
-          
+
           loadedThingImgs[i] = frame;
-          
+
           // Generate grayscale copy
           let g = createGraphics(THING_FRAME_SIZE, THING_FRAME_SIZE);
           g.image(frame, 0, 0);
@@ -575,13 +578,13 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
         };
 
         platforms = [
-          { 
-            x: 0, 
-            y: height - 50, 
-            w: 400, 
-            h: 50, 
+          {
+            x: 0,
+            y: height - 50,
+            w: 400,
+            h: 50,
             color: activeDullPalette[floor(random(activeDullPalette.length))],
-            type: "normal" 
+            type: "normal",
           },
         ];
 
@@ -598,44 +601,42 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
           // Determine platform type using distance-based progression
           let platformType = "normal";
           let platformIsTutorial = false;
-          
+
           // Calculate current level progress as percentage of total level length
           const levelProgress = xPos / LEVEL_LENGTH;
-          
+
           // Determine available platform types based on current level progress
           const availableTypes = ["normal"]; // Always include normal platforms
           if (levelProgress >= INTRO_ZONES.bouncy.start) availableTypes.push("bouncy");
           if (levelProgress >= INTRO_ZONES.moving.start) availableTypes.push("moving");
           if (levelProgress >= INTRO_ZONES.vanishing.start) availableTypes.push("vanishing");
           if (levelProgress >= INTRO_ZONES.crumbling.start) availableTypes.push("crumbling");
-          
+
           // Each zone specifically introduces and features one platform type
           if (levelProgress < INTRO_ZONES.bouncy.start) {
             // Beginning area: Always normal platforms
             platformType = "normal";
-          }
-          else if (levelProgress < INTRO_ZONES.moving.start) {
+          } else if (levelProgress < INTRO_ZONES.moving.start) {
             // Bouncy introduction zone (first 10%-25%)
-            const zoneProgress = (levelProgress - INTRO_ZONES.bouncy.start) / 
-                               (INTRO_ZONES.bouncy.end - INTRO_ZONES.bouncy.start);
-            
+            const zoneProgress =
+              (levelProgress - INTRO_ZONES.bouncy.start) / (INTRO_ZONES.bouncy.end - INTRO_ZONES.bouncy.start);
+
             // Higher chance of bouncy platforms as player progresses through zone
             const bouncyChance = 0.3 + zoneProgress * 0.2; // 30% to 50% chance
-            
+
             // Choose platform type with weighted probability
             platformType = random() < bouncyChance ? "bouncy" : "normal";
-            
+
             // Force tutorial platform at the beginning of the bouncy zone
             if (!tutorialShown.bouncy && levelProgress < INTRO_ZONES.bouncy.start + 0.02) {
               platformType = "bouncy";
               tutorialShown.bouncy = true;
               platformIsTutorial = true;
             }
-          }
-          else if (levelProgress < INTRO_ZONES.vanishing.start) {
+          } else if (levelProgress < INTRO_ZONES.vanishing.start) {
             // Moving platforms zone (25%-45%)
             const typeRoll = random();
-            
+
             if (typeRoll < 0.4) {
               platformType = "moving";
             } else if (typeRoll < 0.6) {
@@ -643,18 +644,17 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
             } else {
               platformType = "normal";
             }
-            
+
             // Force tutorial platform at the beginning of the moving zone
             if (!tutorialShown.moving && levelProgress < INTRO_ZONES.moving.start + 0.02) {
               platformType = "moving";
               tutorialShown.moving = true;
               platformIsTutorial = true;
             }
-          }
-          else if (levelProgress < INTRO_ZONES.crumbling.start) {
+          } else if (levelProgress < INTRO_ZONES.crumbling.start) {
             // Vanishing platforms zone (45%-70%)
             const typeRoll = random();
-            
+
             if (typeRoll < 0.35) {
               platformType = "vanishing";
             } else if (typeRoll < 0.55) {
@@ -664,18 +664,17 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
             } else {
               platformType = "normal";
             }
-            
+
             // Force tutorial platform at the beginning of the vanishing zone
             if (!tutorialShown.vanishing && levelProgress < INTRO_ZONES.vanishing.start + 0.02) {
               platformType = "vanishing";
               tutorialShown.vanishing = true;
               platformIsTutorial = true;
             }
-          }
-          else if (levelProgress < INTRO_ZONES.mixed.start) {
+          } else if (levelProgress < INTRO_ZONES.mixed.start) {
             // Crumbling platforms zone (70%-90%)
             const typeRoll = random();
-            
+
             if (typeRoll < 0.3) {
               platformType = "crumbling";
             } else if (typeRoll < 0.5) {
@@ -687,24 +686,23 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
             } else {
               platformType = "normal";
             }
-            
+
             // Force tutorial platform at the beginning of the crumbling zone
             if (!tutorialShown.crumbling && levelProgress < INTRO_ZONES.crumbling.start + 0.02) {
               platformType = "crumbling";
               tutorialShown.crumbling = true;
               platformIsTutorial = true;
             }
-          }
-          else {
+          } else {
             // Final mixed zone (90%-100%): balanced mix of all platform types
             // Use a more sophisticated distribution with increasing difficulty
-            const finalZoneProgress = (levelProgress - INTRO_ZONES.mixed.start) / 
-                                    (INTRO_ZONES.mixed.end - INTRO_ZONES.mixed.start);
-            
+            const finalZoneProgress =
+              (levelProgress - INTRO_ZONES.mixed.start) / (INTRO_ZONES.mixed.end - INTRO_ZONES.mixed.start);
+
             // Gradually decrease normal platforms, increase special platforms
             const normalChance = 0.3 - finalZoneProgress * 0.2; // 30% down to 10%
             const typeRoll = random();
-            
+
             if (typeRoll < normalChance) {
               platformType = "normal";
             } else {
@@ -712,7 +710,7 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
               const specialTypes = ["bouncy", "moving", "vanishing", "crumbling"];
               platformType = specialTypes[Math.floor(random() * specialTypes.length)];
             }
-            
+
             // In the final zone, occasionally create challenging platform sequences
             if (platforms.length > 0 && random() < 0.4) {
               const prevPlatform = platforms[platforms.length - 1];
@@ -722,11 +720,11 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
               }
             }
           }
-          
+
           // Calculate zone-based difficulty scaling factors (0-1 range)
           const zoneProgress = levelProgress / INTRO_ZONES.mixed.start; // 0-1 over the course of the main zones
           const difficultyFactor = min(zoneProgress * 1.2, 1); // Cap at 1.0, but ramp up slightly faster
-          
+
           // Create the platform with type-specific properties
           let platform = {
             x: xPos,
@@ -736,28 +734,28 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
             color: activeDullPalette[floor(random(activeDullPalette.length))],
             type: platformType,
             isTutorial: platformIsTutorial,
-            zoneDifficulty: zoneProgress // Store the zone difficulty for visual indicators
+            zoneDifficulty: zoneProgress, // Store the zone difficulty for visual indicators
           };
-          
+
           // Add type-specific properties that scale with zone progression
-          switch(platformType) {
+          switch (platformType) {
             case "crumbling":
               // Make platforms crumble faster as game progresses
               const baseMax = platformIsTutorial ? 40 : 30; // Tutorial platforms last a bit longer
               const minMax = 15; // Minimum frames before collapse at max difficulty
               platform.crumbleTimer = -1; // -1 means not triggered yet
-              platform.crumbleMax = round(lerp(baseMax, minMax, difficultyFactor)); 
+              platform.crumbleMax = round(lerp(baseMax, minMax, difficultyFactor));
               platform.originalColor = platform.color;
-              
+
               // Set special color for tutorial platform
               if (platformIsTutorial) {
                 platform.color = color(220, 170, 120); // More distinctive color
               }
               break;
-              
+
             case "vanishing":
               platform.visibleTimer = 0;
-              
+
               if (platformIsTutorial) {
                 // Tutorial vanishing platforms are more predictable with longer visible time
                 platform.cycleLength = 120; // 2 seconds cycle
@@ -767,25 +765,25 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
                 const baseCycle = 120; // 2 seconds at start
                 const minCycle = 60; // 1 second at end
                 platform.cycleLength = round(lerp(baseCycle, minCycle, difficultyFactor));
-                
+
                 // Decrease visibility ratio from 60% to 40% as game progresses
                 platform.visibleRatio = lerp(0.6, 0.4, difficultyFactor);
               }
-              
+
               platform.phase = random(TWO_PI); // Random starting phase
               platform.isVisible = true;
-              
-              // Set special color for tutorial platform 
+
+              // Set special color for tutorial platform
               if (platformIsTutorial) {
                 platform.color = color(220, 220, 255); // More distinctive color
                 platform.phase = 0; // Start in visible state
               }
               break;
-              
+
             case "moving":
               platform.startX = xPos;
               platform.startY = newY;
-              
+
               if (platformIsTutorial) {
                 // Tutorial moving platforms move slower and less distance
                 platform.amplitude = 70;
@@ -796,23 +794,22 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
                 const baseAmplitude = 50;
                 const maxAmplitude = 150;
                 platform.amplitude = lerp(baseAmplitude, maxAmplitude, difficultyFactor);
-                
+
                 const baseSpeed = 0.01;
                 const maxSpeed = 0.04;
                 platform.speed = lerp(baseSpeed, maxSpeed, difficultyFactor);
-                
+
                 // Add vertical movement to later zone platforms for more challenge
                 if (difficultyFactor > 0.6 && random() < 0.6) {
                   platform.verticalMovement = true;
                   platform.verticalPhase = random(TWO_PI);
                   platform.verticalSpeed = platform.speed * random(0.6, 1.0);
-                  
+
                   // Vertical movement amplitude increases with difficulty
                   const minVertAmplitude = 20;
                   const maxVertAmplitude = 40;
-                  platform.verticalAmplitude = lerp(minVertAmplitude, maxVertAmplitude, 
-                                               (difficultyFactor - 0.6) / 0.4);
-                  
+                  platform.verticalAmplitude = lerp(minVertAmplitude, maxVertAmplitude, (difficultyFactor - 0.6) / 0.4);
+
                   // Use a slightly different color for vertical-movement platforms
                   platform.color = color(100, 150, 230); // Purplish blue
                 } else {
@@ -820,16 +817,16 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
                   platform.color = color(80, 180, 255); // Standard blue
                 }
               }
-              
+
               platform.phase = random(TWO_PI);
-              
+
               // Set special color for tutorial platform
               if (platformIsTutorial) {
                 platform.color = color(100, 200, 255); // Brighter blue
                 platform.verticalMovement = false;
               }
               break;
-              
+
             case "bouncy":
               if (platformIsTutorial) {
                 // Tutorial bouncy platforms are more predictable
@@ -840,15 +837,15 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
                 const maxBounce = 1.5; // 50% boost at end
                 platform.bounceFactor = lerp(baseBounce, maxBounce, difficultyFactor);
               }
-              
+
               platform.springCompression = 0;
-              
+
               // Use a more springy color (yellowish), brighter for tutorial
-              platform.color = platformIsTutorial ? 
-                color(255, 255, 80) : // Bright yellow for tutorial
-                color(255, 240, 80);  // Standard yellow
+              platform.color = platformIsTutorial
+                ? color(255, 255, 80) // Bright yellow for tutorial
+                : color(255, 240, 80); // Standard yellow
               break;
-              
+
             case "normal":
               // Even normal platforms get some visual treatment if they're tutorial platforms
               if (platformIsTutorial) {
@@ -856,7 +853,7 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
               }
               break;
           }
-          
+
           platforms.push(platform);
           prevY = newY;
           xPos += platW;
@@ -874,13 +871,13 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
 
         // Get player's current viewport for determining thing positions
         const playerViewportTop = player.y - height / 2;
-        
+
         things = platforms
           .filter((_, i) => i % 3 === 0)
           .map((p) => {
             // compute spawn x position randomly on the platform
             const tx = random(p.x + 10, p.x + p.w - 10);
-            
+
             // Always position things relative to player viewport (60-200px above player's head)
             const minY = playerViewportTop + 60;
             const maxY = playerViewportTop + 200;
@@ -915,10 +912,10 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
           platforms: platforms.length,
           clouds: clouds.length,
         });
-        
+
         // Ensure canvas gets focus to capture keyboard events
         setTimeout(() => {
-          document.querySelector('canvas').focus();
+          document.querySelector("canvas").focus();
         }, 100);
       }
 
@@ -948,32 +945,32 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
       function runGame() {
         // Collect all inputs first
         const inputs = collectInputs();
-        
+
         // Process jump buffer and coyote time
         updateJumpState();
-        
+
         // Apply movement physics based on inputs
         applyMovementPhysics(inputs);
-        
+
         // Handle other player input (jumping, throwing)
         handlePlayerInput(inputs);
-        
+
         // Regular physics and collision updates
         updatePlayer();
         updatePlayerAnimationState();
         advancePlayerFrame();
-        
+
         // Camera and visual updates after physics
         updateCamera();
         updateTagTimer();
         drawGameScene();
         updateNoggles();
-        
+
         // Win/loss conditions
         checkGoal();
         checkFallen();
       }
-      
+
       function updateTagTimer() {
         tagTimer--;
         if (tagTimer <= 0) {
@@ -989,7 +986,7 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
         // Show more horizontal space by moving camera back
         const tx = player.x - width * 0.4; // Was 1/3, now 0.4 to show more space
         cameraX = constrain(lerp(cameraX, tx, 0.1), 0, max(levelWidth - width, 0));
-        
+
         // Show more vertical space by adjusting the vertical position
         const dy = player.y - height * 0.55; // Was 1/2, now 0.55 to show more above player
         cameraY = min(dy, initialCameraY);
@@ -999,14 +996,14 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
         push();
         translate(-cameraX, -cameraY);
         noStroke();
-        
+
         for (let i = particles.length - 1; i >= 0; i--) {
           const p = particles[i];
-          
+
           // Update particle position
           p.x += p.vx;
           p.y += p.vy;
-          
+
           // Apply physics and behaviors based on particle type
           if (p.type === "debris") {
             // Debris particles bounce slightly
@@ -1027,18 +1024,18 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
             // Default particle behavior
             p.vy += 0.2; // Standard gravity
           }
-          
+
           p.life -= 1;
-          
+
           if (p.life <= 0) {
             particles.splice(i, 1);
             continue;
           }
-          
+
           // Calculate opacity based on lifespan
           const maxLife = p.maxLife || 20;
           const alpha = map(p.life, 0, maxLife, 0, 255);
-          
+
           // Draw different particle types
           if (p.type === "debris") {
             // Draw rectangular debris
@@ -1060,7 +1057,7 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
             fill(red(p.color), green(p.color), blue(p.color), alpha);
             circle(p.x, p.y, p.size);
           }
-          
+
           // Draw text if particle has text property
           if (p.text) {
             fill(255, alpha);
@@ -1082,10 +1079,10 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
         drawPlayer();
         drawNoggles();
         pop();
-        
+
         // Draw particles after everything else
         updateAndDrawParticles();
-        
+
         // Draw tag timer effects after everything else
         if (gameState === "playing") {
           drawTagCountdown();
@@ -1098,7 +1095,7 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
           // Draw vignette effect that grows as timer decreases
           const vignetteIntensity = customMap(tagTimer, TAG_TIMER_WARNING, 0, 0, 0.8);
           drawVignette(vignetteIntensity);
-          
+
           // Draw countdown timer for last 5 seconds
           const seconds = ceil(tagTimer / 60);
           if (seconds <= 5) {
@@ -1110,7 +1107,7 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
               text(seconds, width / 2, height / 3);
             }
           }
-          
+
           // Desaturate world as timer approaches zero
           if (vignetteIntensity > 0.3) {
             const desaturation = customMap(vignetteIntensity, 0.3, 0.8, 0, 255);
@@ -1118,73 +1115,74 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
             rect(0, 0, width, height);
           }
         }
-        
+
         // Always show timer at the top
         textAlign(CENTER, TOP);
         textSize(20);
         fill(255);
-        text(`Tag Timer: ${floor(tagTimer/60)}`, width / 2, 40);
+        text(`Tag Timer: ${floor(tagTimer / 60)}`, width / 2, 40);
       }
 
       // Function to draw vignette effect - improved version
       function drawVignette(intensity) {
         if (intensity <= 0) return;
-        
+
         push();
         // Create a smoother vignette using a custom shader approach
         const vignetteSize = max(width, height) * 1.1;
         const minDim = min(width, height);
         const maxDim = max(width, height);
-        
+
         // Draw corners first (stronger effect)
         noStroke();
         for (let corner = 0; corner < 4; corner++) {
-          const x = (corner % 2 === 0) ? 0 : width;
-          const y = (corner < 2) ? 0 : height;
-          
+          const x = corner % 2 === 0 ? 0 : width;
+          const y = corner < 2 ? 0 : height;
+
           drawingContext.save();
           drawingContext.globalAlpha = intensity * 0.8;
-          
-          const gradient = drawingContext.createRadialGradient(
-            x, y, 0,
-            x, y, maxDim * 0.8
-          );
-          
-          gradient.addColorStop(0, 'rgba(0, 0, 0, 0.7)');
-          gradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.2)');
-          gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-          
+
+          const gradient = drawingContext.createRadialGradient(x, y, 0, x, y, maxDim * 0.8);
+
+          gradient.addColorStop(0, "rgba(0, 0, 0, 0.7)");
+          gradient.addColorStop(0.6, "rgba(0, 0, 0, 0.2)");
+          gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+
           drawingContext.fillStyle = gradient;
           drawingContext.fillRect(0, 0, width, height);
           drawingContext.restore();
         }
-        
+
         // Center vignette (for consistent edge darkening)
         drawingContext.save();
         drawingContext.globalAlpha = intensity;
-        
+
         const gradient = drawingContext.createRadialGradient(
-          width/2, height/2, minDim * 0.1, 
-          width/2, height/2, maxDim * 0.6
+          width / 2,
+          height / 2,
+          minDim * 0.1,
+          width / 2,
+          height / 2,
+          maxDim * 0.6,
         );
-        
-        gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
-        gradient.addColorStop(0.7, 'rgba(0, 0, 0, ' + (intensity * 0.4) + ')');
-        gradient.addColorStop(1, 'rgba(0, 0, 0, ' + (intensity * 0.7) + ')');
-        
+
+        gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
+        gradient.addColorStop(0.7, "rgba(0, 0, 0, " + intensity * 0.4 + ")");
+        gradient.addColorStop(1, "rgba(0, 0, 0, " + intensity * 0.7 + ")");
+
         drawingContext.fillStyle = gradient;
         drawingContext.fillRect(0, 0, width, height);
         drawingContext.restore();
-        
+
         // Add red tint to indicate danger
         if (intensity > 0.5) {
           drawingContext.save();
           drawingContext.globalAlpha = customMap(intensity, 0.5, 1, 0, 0.15);
-          drawingContext.fillStyle = 'rgba(255, 0, 0, 0.3)';
+          drawingContext.fillStyle = "rgba(255, 0, 0, 0.3)";
           drawingContext.fillRect(0, 0, width, height);
           drawingContext.restore();
         }
-        
+
         pop();
       }
 
@@ -1200,22 +1198,22 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
       function drawPlatforms() {
         // Draw difficulty-based trail particles for platforms in later zones
         // This runs once per frame before drawing platforms
-        platforms.forEach(p => {
+        platforms.forEach((p) => {
           // Only create trail particles for platforms that are within view
           if (p.x + p.w < cameraX || p.x > cameraX + width) {
             return; // Skip off-screen platforms
           }
-          
+
           // Create difficulty trail particles based on zone progression
           if (p.zoneDifficulty > 0.4 && frameCount % 10 === 0) {
             const difficultyIntensity = map(p.zoneDifficulty, 0.4, 1.0, 0.2, 1.0);
-            
+
             // Create different trail effects based on platform type and difficulty
             if (random() < difficultyIntensity * 0.4) {
               let particleColor;
-              
+
               // Use different colors based on platform type
-              switch(p.type) {
+              switch (p.type) {
                 case "bouncy":
                   particleColor = color(255, 240, 80, 100);
                   break;
@@ -1231,7 +1229,7 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
                 default:
                   particleColor = color(200, 200, 200, 80);
               }
-              
+
               // Create different particle effects based on difficulty level
               if (p.zoneDifficulty > 0.8) {
                 // Advanced zone: Intense particles
@@ -1244,7 +1242,7 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
                   size: random(2, 4) * difficultyIntensity,
                   life: 20 * difficultyIntensity,
                   maxLife: 20 * difficultyIntensity,
-                  type: "sparkle"
+                  type: "sparkle",
                 });
               } else if (p.zoneDifficulty > 0.6) {
                 // Mid-game: Medium particles
@@ -1257,7 +1255,7 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
                   size: random(1.5, 3) * difficultyIntensity,
                   life: 15 * difficultyIntensity,
                   maxLife: 15 * difficultyIntensity,
-                  type: p.type === "vanishing" ? "sparkle" : "default"
+                  type: p.type === "vanishing" ? "sparkle" : "default",
                 });
               } else {
                 // Early zones: Subtle particles
@@ -1269,19 +1267,19 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
                   color: particleColor,
                   size: random(1, 2) * difficultyIntensity,
                   life: 10 * difficultyIntensity,
-                  maxLife: 10 * difficultyIntensity
+                  maxLife: 10 * difficultyIntensity,
                 });
               }
             }
           }
         });
-      
+
         // Update crumbling platforms first
         for (let i = platforms.length - 1; i >= 0; i--) {
           const p = platforms[i];
           if (p.type === "crumbling" && p.crumbleTimer > 0) {
             p.crumbleTimer--;
-            
+
             // Create falling debris when timer expires
             if (p.crumbleTimer === 0) {
               // Generate debris particles
@@ -1297,29 +1295,29 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
                   maxLife: 80,
                   type: "debris",
                   angle: random(TWO_PI),
-                  rotationSpeed: random(-0.15, 0.15)
+                  rotationSpeed: random(-0.15, 0.15),
                 });
               }
-              
+
               // Add a dramatic burst effect
               for (let j = 0; j < 15; j++) {
                 const angle = random(TWO_PI);
                 particles.push({
-                  x: p.x + p.w/2,
-                  y: p.y + p.h/2,
+                  x: p.x + p.w / 2,
+                  y: p.y + p.h / 2,
                   vx: cos(angle) * random(1, 5),
                   vy: sin(angle) * random(1, 5),
                   color: color(255, 180, 100),
                   size: random(10, 20),
                   life: 15,
                   maxLife: 15,
-                  type: "sparkle"
+                  type: "sparkle",
                 });
               }
-              
+
               // Add text effect
               particles.push({
-                x: p.x + p.w/2,
+                x: p.x + p.w / 2,
                 y: p.y,
                 vx: 0,
                 vy: -2,
@@ -1329,31 +1327,31 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
                 maxLife: 50,
                 type: "text",
                 text: "CRASH!",
-                textSize: 18
+                textSize: 18,
               });
-              
+
               // Remove the platform
               platforms.splice(i, 1);
               continue;
             }
           }
         }
-        
+
         // Draw all remaining platforms
         rectMode(CORNER);
         platforms.forEach((p) => {
           // Check if this is a tutorial platform for special rendering
           const isTutorial = p.isTutorial === true;
-          
+
           // Common tutorial platform rendering before type-specific rendering
           if (isTutorial) {
             // Create periodic pulse effect for tutorial platforms
             const pulseAmount = sin(frameCount * 0.1) * 0.5 + 0.5; // 0-1 oscillation
-            
+
             // Draw attention-grabbing glow
             drawingContext.shadowBlur = 15 + pulseAmount * 10;
-            drawingContext.shadowColor = 'rgba(255, 255, 255, 0.7)';
-            
+            drawingContext.shadowColor = "rgba(255, 255, 255, 0.7)";
+
             // Emit subtle particles to draw attention
             if (frameCount % 10 === 0) {
               particles.push({
@@ -1365,44 +1363,41 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
                 size: random(3, 6),
                 life: 40,
                 maxLife: 40,
-                type: "sparkle"
+                type: "sparkle",
               });
             }
-            
+
             // Add "NEW!" indicator text above tutorial platforms
-            if (frameCount % 90 < 60) { // Blink the text
+            if (frameCount % 90 < 60) {
+              // Blink the text
               fill(255, 255, 0);
               stroke(0);
               strokeWeight(3);
               textSize(16);
               textStyle(BOLD);
-              text("NEW!", p.x + p.w/2, p.y - 25);
+              text("NEW!", p.x + p.w / 2, p.y - 25);
               textStyle(NORMAL);
               strokeWeight(0);
             }
           }
-          
+
           // Handle different platform types
-          switch(p.type) {
+          switch (p.type) {
             case "crumbling":
               // Draw crumbling platform with cracks if timer is active
               if (p.crumbleTimer > 0) {
                 // Calculate how "broken" the platform is (0-1)
-                const brokenness = 1 - (p.crumbleTimer / p.crumbleMax);
-                
+                const brokenness = 1 - p.crumbleTimer / p.crumbleMax;
+
                 // Darken and adjust color as it crumbles
-                const crackColor = lerpColor(
-                  color(p.originalColor),
-                  color(100, 60, 30),
-                  brokenness
-                );
+                const crackColor = lerpColor(color(p.originalColor), color(100, 60, 30), brokenness);
                 fill(crackColor);
-                
+
                 // Draw main platform
                 stroke(0, 0, 0, 30);
                 strokeWeight(2);
                 rect(p.x, p.y, p.w, p.h);
-                
+
                 // Draw cracks
                 stroke(0, 0, 0, 150);
                 strokeWeight(1);
@@ -1411,12 +1406,7 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
                   const crackY = p.y + random(p.h);
                   const crackLen = random(5, 15) * brokenness;
                   const angle = random(TWO_PI);
-                  line(
-                    crackX, 
-                    crackY, 
-                    crackX + cos(angle) * crackLen, 
-                    crackY + sin(angle) * crackLen
-                  );
+                  line(crackX, crackY, crackX + cos(angle) * crackLen, crackY + sin(angle) * crackLen);
                 }
               } else {
                 fill(p.color);
@@ -1425,40 +1415,43 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
                 rect(p.x, p.y, p.w, p.h);
               }
               break;
-              
+
             case "vanishing":
               // Only draw if visible in the cycle
               p.visibleTimer = (p.visibleTimer + 1) % p.cycleLength;
               const visibilityPhase = (p.visibleTimer / p.cycleLength + p.phase / TWO_PI) % 1;
-              
+
               // Use platform-specific visibility ratio (defaults to 0.6 if not set)
               const visibleRatio = p.visibleRatio || 0.6;
               p.isVisible = visibilityPhase < visibleRatio;
-              
+
               if (p.isVisible) {
                 // Calculate opacity based on phase for smooth transitions
                 let opacity = 1;
-                const fadeInOut = 0.1; // Fade transition time (10% of cycle) 
+                const fadeInOut = 0.1; // Fade transition time (10% of cycle)
                 const platformVisibleRatio = p.visibleRatio || 0.6;
-                
+
                 if (visibilityPhase < fadeInOut) {
                   // Fade in
                   opacity = map(visibilityPhase, 0, fadeInOut, 0, 1);
-                } else if (visibilityPhase > (platformVisibleRatio - fadeInOut)) {
+                } else if (visibilityPhase > platformVisibleRatio - fadeInOut) {
                   // Fade out
                   opacity = map(visibilityPhase, platformVisibleRatio - fadeInOut, platformVisibleRatio, 1, 0);
                 }
-                
+
                 // Apply the opacity
                 const c = color(p.color);
                 fill(red(c), green(c), blue(c), 255 * opacity);
                 stroke(0, 0, 0, 30 * opacity);
                 strokeWeight(2);
                 rect(p.x, p.y, p.w, p.h);
-                
+
                 // Add shimmer particles when fading
                 // Use the same constants we already defined above
-                if (random() < 0.3 && (visibilityPhase < fadeInOut || visibilityPhase > (platformVisibleRatio - fadeInOut))) {
+                if (
+                  random() < 0.3 &&
+                  (visibilityPhase < fadeInOut || visibilityPhase > platformVisibleRatio - fadeInOut)
+                ) {
                   particles.push({
                     x: p.x + random(p.w),
                     y: p.y + random(p.h),
@@ -1468,20 +1461,18 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
                     size: random(3, 8),
                     life: 20,
                     maxLife: 20,
-                    type: "sparkle"
+                    type: "sparkle",
                   });
-                  
+
                   // Occasionally add a text hint if player is nearby
                   // Enhanced hint generation for tutorial and nearby platforms
-                  const isNearPlayer = dist(player.x, player.y, p.x + p.w/2, p.y) < 250;
-                  
+                  const isNearPlayer = dist(player.x, player.y, p.x + p.w / 2, p.y) < 250;
+
                   // Show more hints for tutorial platforms or when player is nearby
-                  if ((p.isTutorial && frameCount % 90 < 30) || 
-                      (isNearPlayer && random() < 0.05)) {
-                    
+                  if ((p.isTutorial && frameCount % 90 < 30) || (isNearPlayer && random() < 0.05)) {
                     // Create more attention-grabbing text hint
                     particles.push({
-                      x: p.x + p.w/2,
+                      x: p.x + p.w / 2,
                       y: p.y - 15,
                       vx: 0,
                       vy: -1,
@@ -1491,27 +1482,27 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
                       maxLife: 40,
                       type: "text",
                       text: visibilityPhase < fadeInOut ? "Appearing!" : "Vanishing!",
-                      textSize: p.isTutorial ? 14 : 10
+                      textSize: p.isTutorial ? 14 : 10,
                     });
                   }
                 }
               }
               break;
-              
+
             case "moving":
               // Calculate horizontal position based on sine wave
               const horizOffset = sin(frameCount * p.speed + p.phase) * p.amplitude;
               p.x = p.startX + horizOffset;
-              
+
               // Handle vertical movement if enabled
               if (p.verticalMovement) {
                 const vertOffset = sin(frameCount * p.verticalSpeed + p.verticalPhase) * p.verticalAmplitude;
                 p.y = p.startY + vertOffset;
-                
+
                 // Add vertical trail effect
                 if (frameCount % 10 === 0 && abs(vertOffset) > p.verticalAmplitude * 0.6) {
                   const trailDirY = vertOffset > 0 ? -1 : 1;
-                  
+
                   // Add vertical trail particles
                   for (let i = 0; i < 2; i++) {
                     particles.push({
@@ -1523,14 +1514,14 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
                       size: random(2, 5),
                       life: 15,
                       maxLife: 15,
-                      type: "sparkle"
+                      type: "sparkle",
                     });
                   }
-                  
+
                   // Add vertical movement indicators
                   if (abs(vertOffset) > p.verticalAmplitude * 0.9 && random() < 0.2) {
                     particles.push({
-                      x: p.x + p.w/2,
+                      x: p.x + p.w / 2,
                       y: p.y + (trailDirY < 0 ? p.h + 15 : -15),
                       vx: 0,
                       vy: trailDirY * -0.5,
@@ -1540,15 +1531,17 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
                       maxLife: 20,
                       type: "text",
                       text: trailDirY < 0 ? "↓" : "↑",
-                      textSize: 12
+                      textSize: 12,
                     });
                   }
                 }
-                
+
                 // Create 2D trail effect when both movements are at extremes
-                if (frameCount % 15 === 0 && 
-                    abs(horizOffset) > p.amplitude * 0.7 && 
-                    abs(vertOffset) > p.verticalAmplitude * 0.7) {
+                if (
+                  frameCount % 15 === 0 &&
+                  abs(horizOffset) > p.amplitude * 0.7 &&
+                  abs(vertOffset) > p.verticalAmplitude * 0.7
+                ) {
                   // Add a special vortex-like particle effect at corners
                   for (let i = 0; i < 3; i++) {
                     const angle = random(TWO_PI);
@@ -1561,17 +1554,17 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
                       size: random(3, 6),
                       life: 25,
                       maxLife: 25,
-                      type: "sparkle"
+                      type: "sparkle",
                     });
                   }
                 }
               }
-              
+
               // Draw platform with trail effect
               fill(p.color);
               stroke(0, 0, 0, 30);
               strokeWeight(2);
-              
+
               // Add indication of vertical movement with special pattern
               if (p.verticalMovement) {
                 // Create a gradient pattern to indicate vertical movement
@@ -1581,14 +1574,14 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
                   rect(p.x, p.y + i, p.w, patternHeight);
                 }
               }
-              
+
               rect(p.x, p.y, p.w, p.h);
-              
+
               // Add horizontal movement trail particles
               if (frameCount % 8 === 0 && abs(horizOffset) > p.amplitude * 0.6) {
                 const trailDir = horizOffset > 0 ? -1 : 1;
                 const edgeX = p.x + (trailDir > 0 ? 0 : p.w);
-                
+
                 // Add multiple particles for a better trail effect
                 for (let i = 0; i < 2; i++) {
                   particles.push({
@@ -1600,15 +1593,15 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
                     size: random(2, 5),
                     life: 15,
                     maxLife: 15,
-                    type: "sparkle"
+                    type: "sparkle",
                   });
                 }
-                
+
                 // Add occasional movement indicator when near max position
                 if (abs(horizOffset) > p.amplitude * 0.9 && random() < 0.2) {
                   particles.push({
                     x: p.x + (trailDir > 0 ? -15 : p.w + 15),
-                    y: p.y + p.h/2,
+                    y: p.y + p.h / 2,
                     vx: trailDir * -0.5,
                     vy: 0,
                     color: color(150, 220, 255),
@@ -1617,88 +1610,89 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
                     maxLife: 20,
                     type: "text",
                     text: trailDir > 0 ? "←" : "→",
-                    textSize: 12
+                    textSize: 12,
                   });
                 }
               }
               break;
-              
+
             case "bouncy":
               // Draw bouncy platform with spring visual
               fill(p.color);
               stroke(0, 0, 0, 40);
               strokeWeight(2);
-              
+
               // Draw main platform
               rect(p.x, p.y, p.w, p.h);
-              
+
               // Draw bouncy indicators (springs)
               const springCount = floor(p.w / 30);
               const spacing = p.w / (springCount + 1);
-              
+
               for (let i = 1; i <= springCount; i++) {
                 const springX = p.x + i * spacing;
                 const compressionOffset = p.springCompression * 3;
-                
+
                 // Draw spring coil
                 stroke(80, 80, 80);
                 strokeWeight(3);
                 const springWidth = 10;
                 const springHeight = 10 - compressionOffset;
                 const coils = 3;
-                
+
                 beginShape();
                 for (let j = 0; j <= coils * 2; j++) {
-                  const segX = springX + (j % 2 === 0 ? -springWidth/2 : springWidth/2);
+                  const segX = springX + (j % 2 === 0 ? -springWidth / 2 : springWidth / 2);
                   const segY = p.y + springHeight * (j / (coils * 2));
                   vertex(segX, segY);
                 }
                 endShape();
-                
+
                 // Draw spring top cap
                 fill(220, 220, 0);
                 noStroke();
                 ellipse(springX, p.y, springWidth + 4, 4);
               }
-              
+
               // Spring gradually decompresses if compressed
               p.springCompression = max(0, p.springCompression - 0.5);
-              break;              default:
+              break;
+            default:
               // Normal platform
               fill(p.color);
               stroke(0, 0, 0, 30);
               strokeWeight(2);
-              
+
               // Add zone difficulty visual indicators for normal platforms
               if (p.zoneDifficulty > 0.5 && !p.isTutorial) {
                 // Apply a difficulty pattern or highlight
                 const diffStripes = round(map(p.zoneDifficulty, 0.5, 1.0, 2, 5));
                 const stripeW = p.w / (diffStripes * 2 - 1);
-                
+
                 // Draw difficulty stripes
                 for (let i = 0; i < diffStripes; i++) {
                   const stripeFill = lerpColor(
                     color(p.color),
                     color(150, 150, 150),
-                    map(p.zoneDifficulty, 0.5, 1.0, 0.1, 0.3)
+                    map(p.zoneDifficulty, 0.5, 1.0, 0.1, 0.3),
                   );
                   fill(stripeFill);
                   rect(p.x + i * stripeW * 2, p.y, stripeW, p.h);
                 }
-                
+
                 // Add a subtle glow intensity based on difficulty
                 if (p.zoneDifficulty > 0.7) {
                   const glowIntensity = map(p.zoneDifficulty, 0.7, 1.0, 3, 8);
                   drawingContext.shadowBlur = glowIntensity;
-                  drawingContext.shadowColor = 'rgba(200, 200, 200, 0.3)';
+                  drawingContext.shadowColor = "rgba(200, 200, 200, 0.3)";
                 }
               }
-              
+
               rect(p.x, p.y, p.w, p.h);
           }
         });
         noStroke();
-        
+
         // Reset shadow settings at the end of drawing platforms
         drawingContext.shadowBlur = 0;
       }
@@ -1729,45 +1723,45 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
               vy: -n.vy * 0.1,
               size: random(3, 8),
               life: random(8, 15),
-              color: n.trailColor || color(255, 50, 50, 100)
+              color: n.trailColor || color(255, 50, 50, 100),
             });
           }
-          
+
           push();
           translate(n.x, n.y);
           rotate(n.angle);
           const sz = n.r * 10;
-          
+
           // Add glow effect for noggles in flight
           if (n.hasTrail) {
             drawingContext.shadowBlur = 15;
-            drawingContext.shadowColor = 'rgba(255, 50, 50, 0.5)';
+            drawingContext.shadowColor = "rgba(255, 50, 50, 0.5)";
           }
-          
+
           image(noggleImg, 0, 0, sz, sz);
           pop();
         });
       }
 
       // Helper function for distance calculation
-function distToRectangle(px, py, rx, ry, rw, rh) {
-  const nearestX = max(rx, min(px, rx + rw));
-  const nearestY = max(ry, min(py, ry + rh));
-  return dist(px, py, nearestX, nearestY);
-}
+      function distToRectangle(px, py, rx, ry, rw, rh) {
+        const nearestX = max(rx, min(px, rx + rw));
+        const nearestY = max(ry, min(py, ry + rh));
+        return dist(px, py, nearestX, nearestY);
+      }
 
-function updateNoggles() {
+      function updateNoggles() {
         for (let i = noggles.length - 1; i >= 0; i--) {
           const n = noggles[i];
           n.vy += NOGGLE_GRAVITY;
           n.x += n.vx;
           n.y += n.vy;
           n.angle += n.angularVelocity;
-          
+
           // Check for near misses with platforms (within 15px)
           for (const p of platforms) {
             const distToPlat = distToRectangle(n.x, n.y, p.x, p.y, p.w, p.h);
-            
+
             if (distToPlat < 15 && distToPlat > 0) {
               // This is a near miss! Create "so close" particles
               for (let j = 0; j < 5; j++) {
@@ -1779,11 +1773,11 @@ function updateNoggles() {
                   size: 3,
                   life: random(20, 30),
                   color: color(255, 255, 100, 200),
-                  text: "Close!"
+                  text: "Close!",
                 });
               }
             }
-            
+
             // Regular collision check
             if (n.x > p.x && n.x < p.x + p.w && n.y > p.y && n.y < p.h) {
               // Create satisfying burst particles
@@ -1796,15 +1790,10 @@ function updateNoggles() {
                   vy: sin(ang) * random(1, 4),
                   size: random(3, 8),
                   life: random(15, 30),
-                  color: color(
-                    random(200, 255),
-                    random(100, 200),
-                    random(50, 150),
-                    200
-                  )
+                  color: color(random(200, 255), random(100, 200), random(50, 150), 200),
                 });
               }
-              
+
               p.color = activeBrightPalette[floor(random(activeBrightPalette.length))];
               if (window.FarcadeSDK?.singlePlayer) {
                 window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
@@ -1813,11 +1802,11 @@ function updateNoggles() {
               break;
             }
           }
-          
+
           // Similar near-miss detection for things
           for (const t of things) {
-            const distToThing = dist(n.x, n.y, t.x, t.y) - (t.size / 2);
-            
+            const distToThing = dist(n.x, n.y, t.x, t.y) - t.size / 2;
+
             // Near miss feedback for things
             if (!t.collected && distToThing < 20 && distToThing > 0) {
               // This is a near miss with a thing!
@@ -1830,18 +1819,19 @@ function updateNoggles() {
                   size: 3,
                   life: random(20, 30),
                   color: color(255, 200, 100, 200),
-                  text: "Almost!"
+                  text: "Almost!",
                 });
               }
             }
-            
+
             // thing collision - keep existing code but add particle effects
-            if (!t.collected &&
-                n.x > t.x - t.size / 2 &&
-                n.x < t.x + t.size / 2 &&
-                n.y > t.y - t.size / 2 &&
-                n.y < t.y + t.size / 2) {
-                  
+            if (
+              !t.collected &&
+              n.x > t.x - t.size / 2 &&
+              n.x < t.x + t.size / 2 &&
+              n.y > t.y - t.size / 2 &&
+              n.y < t.y + t.size / 2
+            ) {
               // Create colorful burst on collection
               for (let j = 0; j < 25; j++) {
                 const ang = random(TWO_PI);
@@ -1853,10 +1843,10 @@ function updateNoggles() {
                   vy: sin(ang) * random(-5, 1),
                   size: random(5, 10),
                   life: random(20, 40),
-                  color: color(random(100, 255), random(100, 255), random(100, 255))
+                  color: color(random(100, 255), random(100, 255), random(100, 255)),
                 });
               }
-              
+
               // Existing collection logic
               t.collected = true;
               score += 10;
@@ -1868,7 +1858,7 @@ function updateNoggles() {
               break;
             }
           }
-          
+
           // out of bounds
           if (n.y > cameraY + height * 2) {
             noggles.splice(i, 1);
@@ -1883,42 +1873,42 @@ function updateNoggles() {
           moveRight: false,
           jump: false,
           throw: false,
-          throwTarget: {x: 0, y: 0},
+          throwTarget: { x: 0, y: 0 },
           moveStrength: 1.0,
-          jumpBuffered: jumpBufferTimer > 0
+          jumpBuffered: jumpBufferTimer > 0,
         };
-        
+
         // Keyboard inputs using global keyTracker (works regardless of canvas focus)
         // Using numeric key codes for arrow keys (LEFT=37, RIGHT=39, UP=38) along with WASD
-        inputs.moveLeft = keyTracker.isKeyDown(37) || keyTracker.isKeyDown('a');
-        inputs.moveRight = keyTracker.isKeyDown(39) || keyTracker.isKeyDown('d');
-        inputs.jump = keyTracker.isKeyDown(38) || keyTracker.isKeyDown('w') || keyTracker.isKeyDown(32); // Space
-        
+        inputs.moveLeft = keyTracker.isKeyDown(37) || keyTracker.isKeyDown("a");
+        inputs.moveRight = keyTracker.isKeyDown(39) || keyTracker.isKeyDown("d");
+        inputs.jump = keyTracker.isKeyDown(38) || keyTracker.isKeyDown("w") || keyTracker.isKeyDown(32); // Space
+
         // Touch/mouse inputs
         for (const t of touches) {
           if (dist(t.x, t.y, joystick.x, joystick.y) < joystick.activeRadius) {
             const dx = t.x - joystick.x;
-            inputs.moveLeft = inputs.moveLeft || dx < -joystick.inner/2;
-            inputs.moveRight = inputs.moveRight || dx > joystick.inner/2;
+            inputs.moveLeft = inputs.moveLeft || dx < -joystick.inner / 2;
+            inputs.moveRight = inputs.moveRight || dx > joystick.inner / 2;
             // Store analog value for variable speed
             inputs.moveStrength = constrain(abs(dx) / (joystick.outer - joystick.inner), 0, 1);
           }
-          
+
           // Check for touch-based jump button presses
           if (dist(t.x, t.y, jumpBtn.x, jumpBtn.y) < jumpBtn.r) {
             inputs.jump = true;
           }
         }
-        
+
         // If jump is detected through keyboard or touch, trigger the jump buffer
         if (inputs.jump && !previousJumpState) {
           jumpBufferTimer = 6;
           tryPerformJump();
         }
-        
+
         // Track the previous jump state to detect new presses
         previousJumpState = inputs.jump;
-        
+
         return inputs;
       }
 
@@ -1926,48 +1916,48 @@ function updateNoggles() {
         // Decrement timers
         if (jumpBufferTimer > 0) jumpBufferTimer--;
         if (coyoteTimer > 0) coyoteTimer--;
-        
+
         // Clear ground state when moving upward
         if (player.velocityY < -0.1) {
           player.isOnGround = false;
         }
-        
+
         // Start coyote timer when walking off platforms
         if (!player.isOnGround && player.wasOnGround) {
           coyoteTimer = 8; // Slightly more generous (133ms at 60fps)
         }
-        
+
         player.wasOnGround = player.isOnGround;
       }
-      
+
       function tryPerformJump() {
         if ((player.isOnGround || coyoteTimer > 0) && jumpBufferTimer > 0) {
           player.velocityY = -15;
           player.isOnGround = false;
           coyoteTimer = 0;
           jumpBufferTimer = 0;
-          
+
           // Keep timer for animation purposes but don't apply scaling
           player.jumpSquash = 1.5;
-          
+
           // Enhanced jump particles for better visual feedback (since we're removing the squash)
           // Create a dust cloud effect at player's feet
           for (let i = 0; i < 15; i++) {
-            const angle = random(PI/6, 5*PI/6);
+            const angle = random(PI / 6, (5 * PI) / 6);
             const speed = random(1, 4);
             particles.push({
               x: player.x + random(-10, 10),
-              y: player.y + player.height/2,
+              y: player.y + player.height / 2,
               vx: cos(angle) * speed * (random() > 0.5 ? -1 : 1),
               vy: -sin(angle) * speed,
               size: random(3, 8),
               life: random(15, 25),
               maxLife: 25,
               color: color(255, 255, 255, 180),
-              type: "sparkle"
+              type: "sparkle",
             });
           }
-          
+
           // Add text effect occasionally
           if (random() < 0.3) {
             particles.push({
@@ -1981,10 +1971,10 @@ function updateNoggles() {
               maxLife: 30,
               type: "text",
               text: "Jump!",
-              textSize: 12
+              textSize: 12,
             });
           }
-          
+
           if (window.FarcadeSDK?.singlePlayer) {
             window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
           }
@@ -1996,17 +1986,17 @@ function updateNoggles() {
         let targetVelocityX = 0;
         if (inputs.moveLeft) targetVelocityX = -5;
         if (inputs.moveRight) targetVelocityX = 5;
-        
+
         // Apply analog control if using touch
         if (inputs.moveStrength !== undefined) {
           targetVelocityX *= inputs.moveStrength;
         }
-        
+
         // Apply acceleration and deceleration for smoother movement
         const accelerationGround = 0.8;
         const accelerationAir = 0.4;
         const currentAccel = player.isOnGround ? accelerationGround : accelerationAir;
-        
+
         if (targetVelocityX !== 0) {
           // Accelerating
           player.velocityX = lerp(player.velocityX, targetVelocityX, currentAccel);
@@ -2015,7 +2005,7 @@ function updateNoggles() {
           player.velocityX *= 0.8;
           if (abs(player.velocityX) < 0.1) player.velocityX = 0;
         }
-        
+
         // Update facing direction only when actually moving
         if (abs(targetVelocityX) > 0.1) {
           player.animation.facingDirection = targetVelocityX > 0 ? 1 : -1;
@@ -2055,28 +2045,28 @@ function updateNoggles() {
           player.isOnGround = false;
           coyoteTimer = 0;
           jumpBufferTimer = 0;
-          
+
           // Keep timer for animation purposes but don't apply scaling
           player.jumpSquash = 1.5;
-          
+
           // Enhanced jump particles for better visual feedback
           // Create a dust cloud effect at player's feet
           for (let i = 0; i < 15; i++) {
-            const angle = random(PI/6, 5*PI/6);
+            const angle = random(PI / 6, (5 * PI) / 6);
             const speed = random(1, 4);
             particles.push({
               x: player.x + random(-10, 10),
-              y: player.y + player.height/2,
+              y: player.y + player.height / 2,
               vx: cos(angle) * speed * (random() > 0.5 ? -1 : 1),
               vy: -sin(angle) * speed,
               size: random(3, 8),
               life: random(15, 25),
               maxLife: 25,
               color: color(255, 255, 255, 180),
-              type: "sparkle"
+              type: "sparkle",
             });
           }
-          
+
           // Add text effect occasionally
           if (random() < 0.3) {
             particles.push({
@@ -2090,10 +2080,10 @@ function updateNoggles() {
               maxLife: 30,
               type: "text",
               text: "Jump!",
-              textSize: 12
+              textSize: 12,
             });
           }
-          
+
           if (window.FarcadeSDK?.singlePlayer) {
             window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
           }
@@ -2108,15 +2098,15 @@ function updateNoggles() {
             if (p.type === "moving" && player.isOnGround && player.y <= p.y) {
               // Allow the player to be pushed by the moving platform
               let platformVelocityX = 0;
-              
+
               // Calculate the platform's current velocity based on its position change
               if (p.prevX !== undefined) {
                 platformVelocityX = p.x - p.prevX;
-                
+
                 // Apply platform momentum to the player (reduced effect)
                 player.velocityX += platformVelocityX * 0.8;
               }
-              
+
               // Store platform's current position for next frame's velocity calculation
               p.prevX = p.x;
             } else {
@@ -2138,21 +2128,21 @@ function updateNoggles() {
           if (p.type === "vanishing" && !p.isVisible) {
             return;
           }
-          
+
           if (isColliding(player, p)) {
             const prevBot = player.y - player.velocityY + player.height / 2;
             if (player.velocityY > 0 && prevBot <= p.y + 1) {
               // Landing on top of platform
               player.y = p.y - player.height / 2;
-              
+
               // Check if this is the first encounter with this platform type
               if (p.type !== "normal" && !helpTexts[p.type].shown) {
                 // Show help text for this platform type
                 helpTexts[p.type].shown = true;
-                
+
                 // Create a more prominent help text - as a message at the top
                 particles.push({
-                  x: width/2 + cameraX,
+                  x: width / 2 + cameraX,
                   y: 80 + cameraY,
                   vx: 0,
                   vy: 0,
@@ -2162,13 +2152,13 @@ function updateNoggles() {
                   maxLife: 240,
                   type: "text",
                   text: helpTexts[p.type].text,
-                  textSize: 20
+                  textSize: 20,
                 });
-                
+
                 // Add attention-grabbing effect
                 for (let i = 0; i < 12; i++) {
                   particles.push({
-                    x: width/2 + cameraX + random(-100, 100),
+                    x: width / 2 + cameraX + random(-100, 100),
                     y: 80 + cameraY + random(-10, 10),
                     vx: random(-1, 1),
                     vy: random(-0.5, -1.5),
@@ -2176,11 +2166,11 @@ function updateNoggles() {
                     size: random(3, 6),
                     life: random(30, 60),
                     maxLife: 60,
-                    type: "sparkle"
+                    type: "sparkle",
                   });
                 }
               }
-              
+
               // Special effects for tutorial platforms when stepped on
               if (p.isTutorial) {
                 // Create a circular wave effect
@@ -2188,7 +2178,7 @@ function updateNoggles() {
                 for (let i = 0; i < waveCount; i++) {
                   const angle = (i / waveCount) * TWO_PI;
                   particles.push({
-                    x: p.x + p.w/2 + cos(angle) * 20,
+                    x: p.x + p.w / 2 + cos(angle) * 20,
                     y: p.y + sin(angle) * 10,
                     vx: cos(angle) * 2,
                     vy: sin(angle) * 1.5 - 1,
@@ -2196,13 +2186,13 @@ function updateNoggles() {
                     size: random(5, 8),
                     life: 40,
                     maxLife: 40,
-                    type: "sparkle"
+                    type: "sparkle",
                   });
                 }
-                
+
                 // Add "Tutorial" text that rises upward
                 particles.push({
-                  x: p.x + p.w/2,
+                  x: p.x + p.w / 2,
                   y: p.y - 25,
                   vx: 0,
                   vy: -1.2,
@@ -2212,17 +2202,17 @@ function updateNoggles() {
                   maxLife: 80,
                   type: "text",
                   text: "Tutorial Platform!",
-                  textSize: 14
+                  textSize: 14,
                 });
               }
-              
+
               // Platform-specific behaviors when landing
-              switch(p.type) {
+              switch (p.type) {
                 case "crumbling":
                   // Start crumble timer if not already started
                   if (p.crumbleTimer === -1) {
                     p.crumbleTimer = p.crumbleMax;
-                    
+
                     // Add crumble particles when landing
                     for (let i = 0; i < 5; i++) {
                       particles.push({
@@ -2236,10 +2226,10 @@ function updateNoggles() {
                         maxLife: 15,
                         type: "debris",
                         angle: random(TWO_PI),
-                        rotationSpeed: random(-0.1, 0.1)
+                        rotationSpeed: random(-0.1, 0.1),
                       });
                     }
-                    
+
                     // Add "Cracking!" text effect
                     particles.push({
                       x: player.x,
@@ -2252,30 +2242,30 @@ function updateNoggles() {
                       maxLife: 30,
                       type: "text",
                       text: "Cracking!",
-                      textSize: 12
+                      textSize: 12,
                     });
                   }
                   player.velocityY = 0;
                   player.isOnGround = true;
                   coyoteTimer = 6;
                   break;
-                  
+
                 case "bouncy":
                   // Compress spring and apply bounce
                   p.springCompression = 5;
                   player.velocityY = -15 * p.bounceFactor; // Apply moderately higher jump
-                  
+
                   // In higher difficulty zones, add some horizontal momentum too
                   if (p.zoneDifficulty > 0.7 && !p.isTutorial) {
                     const horizontalBoostFactor = map(p.zoneDifficulty, 0.7, 1.0, 0.3, 0.8);
-                    
+
                     // Determine direction based on player's position on the platform
                     const playerPosOnPlat = (player.x - p.x) / p.w;
-                    
+
                     // Higher boost when near edges, minimal in center
                     const edgeFactor = abs(playerPosOnPlat - 0.5) * 2; // 0 at center, 1 at edges
                     const boostMagnitude = 4 * horizontalBoostFactor * edgeFactor;
-                    
+
                     // Apply horizontal boost away from center
                     if (playerPosOnPlat < 0.5) {
                       // Left side - boost left
@@ -2284,7 +2274,7 @@ function updateNoggles() {
                       // Right side - boost right
                       player.velocityX = boostMagnitude;
                     }
-                    
+
                     // Add side-boost indicator for advanced zone bouncy platforms
                     if (edgeFactor > 0.6) {
                       const boostDirection = playerPosOnPlat < 0.5 ? "←" : "→";
@@ -2299,27 +2289,27 @@ function updateNoggles() {
                         maxLife: 30,
                         type: "text",
                         text: boostDirection + " BOOST!",
-                        textSize: 14
+                        textSize: 14,
                       });
                     }
                   }
-                  
+
                   // Add bounce particles
                   for (let i = 0; i < 12; i++) {
-                    const angle = random(-PI/4, -3*PI/4);
+                    const angle = random(-PI / 4, (-3 * PI) / 4);
                     particles.push({
                       x: player.x + random(-10, 10),
-                      y: player.y + player.height/2 - 5,
+                      y: player.y + player.height / 2 - 5,
                       vx: cos(angle) * random(1, 3),
                       vy: sin(angle) * random(1, 3),
                       color: color(255, 255, 100),
                       size: random(3, 8),
                       life: 25,
                       maxLife: 25,
-                      type: "sparkle"
+                      type: "sparkle",
                     });
                   }
-                  
+
                   // Add bounce text effect - bigger and more noticeable
                   particles.push({
                     x: player.x,
@@ -2332,16 +2322,16 @@ function updateNoggles() {
                     maxLife: 40,
                     type: "text",
                     text: "BOING!",
-                    textSize: 16
+                    textSize: 16,
                   });
                   break;
-                  
+
                 default:
                   // Regular platform landing (normal and moving)
                   player.velocityY = 0;
                   player.isOnGround = true;
                   coyoteTimer = 6;
-                  
+
                   // Reset jump squash on landing for visual feedback
                   if (player.jumpSquash < 1) player.jumpSquash = 1;
               }
@@ -2393,26 +2383,26 @@ function updateNoggles() {
         const frame = a.frameIndex % ANIMATION_DEFS[a.currentSet].frames;
         const sx = (animMap.startFrame + frame) * FRAME_WIDTH;
         const sy = animMap.row * FRAME_HEIGHT;
-        
+
         // Use consistent 2.5 scale for character - maintains proportions in all animations
         const playerScale = 2.5;
         const dw = FRAME_WIDTH * playerScale;
         const dh = FRAME_HEIGHT * playerScale;
-        
+
         push();
         translate(player.x, player.y);
-        
+
         // Keep track of jump animation state but don't apply squash/stretch scaling
         if (player.jumpSquash > 0) {
           player.jumpSquash = max(player.jumpSquash - 0.1, 0);
         }
-        
+
         // Apply throw animation rotation only (no scaling)
         if (player.throwSquash > 0) {
-          rotate(player.animation.facingDirection * customMap(player.throwSquash, 1, 0, PI/16, 0));
+          rotate(player.animation.facingDirection * customMap(player.throwSquash, 1, 0, PI / 16, 0));
           player.throwSquash = max(player.throwSquash - 0.15, 0);
         }
-        
+
         const yoff = (dh - player.height) / 2;
         image(player.spriteSheet, 0, -yoff, dw, dh, sx, sy, FRAME_WIDTH, FRAME_HEIGHT);
         pop();
@@ -2439,77 +2429,80 @@ function updateNoggles() {
         fill(0, 0, 100, 80);
         textSize(24);
         text("↑", jumpBtn.x, jumpBtn.y + 2);
-        
+
         // Draw score
         noStroke();
         fill(0, 0, 100);
         textSize(24);
         textAlign(CENTER, TOP);
         text(`Score: ${score}`, width / 2, 10);
-        
+
         // Draw level section indicator with updated naming to match more varied level
         // Calculate the exact progress through the level
         const levelProgress = player.x / LEVEL_LENGTH;
         const levelSection = floor(levelProgress * 5);
         const sectionName = [
-          "Starting Area", 
-          "Bouncy Challenges", 
-          "Mixed Movement", 
-          "Tricky Terrain", 
-          "Master Challenge"
+          "Starting Area",
+          "Bouncy Challenges",
+          "Mixed Movement",
+          "Tricky Terrain",
+          "Master Challenge",
         ][Math.min(levelSection, 4)];
-        
+
         textSize(16);
         textAlign(CENTER, TOP);
         fill(255, 255, 220);
         text(sectionName, width / 2, 40);
-        
+
         // Draw a fancy progress bar that shows zone boundaries
         const progressBarWidth = width * 0.6;
         const progressBarHeight = 8;
-        const progressBarX = width/2 - progressBarWidth/2;
+        const progressBarX = width / 2 - progressBarWidth / 2;
         const progressBarY = 65;
-        
+
         // Draw background track
         noStroke();
         fill(50, 50, 50, 100);
         rect(progressBarX, progressBarY, progressBarWidth, progressBarHeight, 4);
-        
+
         // Draw progress
         const progressWidth = progressBarWidth * levelProgress;
-        
+
         // Create a gradient for the progress bar based on difficulty
         drawingContext.save();
         const gradient = drawingContext.createLinearGradient(
-          progressBarX, progressBarY,
-          progressBarX + progressBarWidth, progressBarY
+          progressBarX,
+          progressBarY,
+          progressBarX + progressBarWidth,
+          progressBarY,
         );
-        
+
         // Add color stops for different zones
-        gradient.addColorStop(0, 'rgb(150, 255, 150)'); // Green for easy beginning
-        gradient.addColorStop(INTRO_ZONES.bouncy.start, 'rgb(220, 255, 100)'); // Yellow-green for bouncy
-        gradient.addColorStop(INTRO_ZONES.moving.start, 'rgb(100, 200, 255)'); // Blue for moving
-        gradient.addColorStop(INTRO_ZONES.vanishing.start, 'rgb(200, 180, 255)'); // Purple for vanishing
-        gradient.addColorStop(INTRO_ZONES.crumbling.start, 'rgb(255, 150, 100)'); // Orange for crumbling
-        gradient.addColorStop(INTRO_ZONES.mixed.start, 'rgb(255, 80, 80)'); // Red for final zone
-        
+        gradient.addColorStop(0, "rgb(150, 255, 150)"); // Green for easy beginning
+        gradient.addColorStop(INTRO_ZONES.bouncy.start, "rgb(220, 255, 100)"); // Yellow-green for bouncy
+        gradient.addColorStop(INTRO_ZONES.moving.start, "rgb(100, 200, 255)"); // Blue for moving
+        gradient.addColorStop(INTRO_ZONES.vanishing.start, "rgb(200, 180, 255)"); // Purple for vanishing
+        gradient.addColorStop(INTRO_ZONES.crumbling.start, "rgb(255, 150, 100)"); // Orange for crumbling
+        gradient.addColorStop(INTRO_ZONES.mixed.start, "rgb(255, 80, 80)"); // Red for final zone
+
         drawingContext.fillStyle = gradient;
         rect(progressBarX, progressBarY, progressWidth, progressBarHeight, 4);
         drawingContext.restore();
-        
+
         // Draw zone boundary markers
         stroke(255, 255, 255, 150);
         strokeWeight(1.5);
-        
+
         // Draw markers for each zone boundary
         for (const zone in INTRO_ZONES) {
-          if (INTRO_ZONES[zone].start > 0) { // Skip first zone marker
-            const markerX = progressBarX + (progressBarWidth * INTRO_ZONES[zone].start);
+          if (INTRO_ZONES[zone].start > 0) {
+            // Skip first zone marker
+            const markerX = progressBarX + progressBarWidth * INTRO_ZONES[zone].start;
             line(markerX, progressBarY - 2, markerX, progressBarY + progressBarHeight + 2);
-            
+
             // Add small zone indicators as tiny icons or colored dots
             noStroke();
-            switch(zone) {
+            switch (zone) {
               case "bouncy":
                 fill(255, 240, 80);
                 break;
@@ -2528,64 +2521,72 @@ function updateNoggles() {
               default:
                 fill(200, 200, 200);
             }
-            
+
             // Draw icon dots above markers
             circle(markerX, progressBarY - 10, 6);
           }
         }
-        
+
         // Draw player position indicator
         noStroke();
         fill(255);
         triangle(
-          progressBarX + progressWidth, progressBarY + progressBarHeight + 6,
-          progressBarX + progressWidth - 5, progressBarY + progressBarHeight + 1,
-          progressBarX + progressWidth + 5, progressBarY + progressBarHeight + 1
+          progressBarX + progressWidth,
+          progressBarY + progressBarHeight + 6,
+          progressBarX + progressWidth - 5,
+          progressBarY + progressBarHeight + 1,
+          progressBarX + progressWidth + 5,
+          progressBarY + progressBarHeight + 1,
         );
-        
+
         // Draw small platform type icons for this section
         const iconSize = 15;
         const iconSpacing = 18;
         const totalWidth = 5 * iconSpacing;
         let iconStartX = width / 2 - totalWidth / 2;
-        
+
         noStroke();
         textSize(10);
         textAlign(CENTER, CENTER);
-        
+
         // Draw platform type indicators
         const platformTypes = ["normal", "bouncy", "moving", "vanishing", "crumbling"];
         platformTypes.forEach((type, i) => {
           const iconX = iconStartX + i * iconSpacing * 2;
           const iconY = 65;
-          
+
           // Determine if this platform type is common in current section
           // Updated to match our more varied level design with all platform types introduced earlier
-          const isCommon = (
+          const isCommon =
             (levelSection === 0 && (type === "normal" || type === "bouncy")) ||
             (levelSection === 1 && (type === "normal" || type === "bouncy" || type === "moving")) ||
-            (levelSection === 2 && (type === "normal" || type === "bouncy" || type === "moving" || type === "vanishing")) ||
-            (levelSection === 3 && (type === "normal" || type === "bouncy" || type === "moving" || type === "vanishing" || type === "crumbling")) ||
-            (levelSection === 4) // All platforms are common in the final section
-          );
-          
+            (levelSection === 2 &&
+              (type === "normal" || type === "bouncy" || type === "moving" || type === "vanishing")) ||
+            (levelSection === 3 &&
+              (type === "normal" ||
+                type === "bouncy" ||
+                type === "moving" ||
+                type === "vanishing" ||
+                type === "crumbling")) ||
+            levelSection === 4; // All platforms are common in the final section
+
           // Draw platform icon
           if (isCommon) {
             // Draw highlighted
-            switch(type) {
+            switch (type) {
               case "normal":
                 fill(200, 200, 200);
-                rect(iconX, iconY, iconSize, iconSize/3);
+                rect(iconX, iconY, iconSize, iconSize / 3);
                 break;
               case "bouncy":
                 fill(255, 240, 80);
-                rect(iconX, iconY, iconSize, iconSize/3);
+                rect(iconX, iconY, iconSize, iconSize / 3);
                 fill(80, 80, 80);
                 text("↑", iconX, iconY + 6);
                 break;
               case "moving":
                 fill(80, 180, 255); // Match the updated blue color
-                rect(iconX, iconY, iconSize, iconSize/3);
+                rect(iconX, iconY, iconSize, iconSize / 3);
                 fill(255);
                 text("↔", iconX, iconY + 6); // Change to horizontal arrow
                 break;
@@ -2593,11 +2594,11 @@ function updateNoggles() {
                 // Pulsing effect
                 const pulse = sin(frameCount * 0.1) * 0.5 + 0.5;
                 fill(255, 255, 255, 100 + pulse * 155);
-                rect(iconX, iconY, iconSize, iconSize/3);
+                rect(iconX, iconY, iconSize, iconSize / 3);
                 break;
               case "crumbling":
                 fill(200, 150, 100);
-                rect(iconX, iconY, iconSize, iconSize/3);
+                rect(iconX, iconY, iconSize, iconSize / 3);
                 // Draw cracks
                 stroke(100, 60, 40, 200);
                 strokeWeight(1);
@@ -2609,10 +2610,10 @@ function updateNoggles() {
           } else {
             // Draw dimmed
             fill(100, 100, 100, 80);
-            rect(iconX, iconY, iconSize, iconSize/3);
+            rect(iconX, iconY, iconSize, iconSize / 3);
           }
         });
-        
+
         // Reset text alignment
         textAlign(CENTER, CENTER);
       }
@@ -2652,54 +2653,54 @@ function updateNoggles() {
         text("← → or A / D: Move", width / 2, moveY - 80);
         text("↑ or W: Jump", width / 2, jumpY - 80);
         text("Click / Tap to Throw Noggles", width / 2, throwY - 80);
-        
+
         // Add platform type explanations
         textSize(16);
         fill("#FFFFFF");
-        text("Platform Types:", width / 2, height/2 - 60);
-        
+        text("Platform Types:", width / 2, height / 2 - 60);
+
         textSize(14);
         textAlign(LEFT, CENTER);
-        const platformInfoX = width/2 - 120;
-        
+        const platformInfoX = width / 2 - 120;
+
         // Normal platforms
         fill(200, 200, 200);
-        rect(platformInfoX, height/2 - 30, 30, 10);
+        rect(platformInfoX, height / 2 - 30, 30, 10);
         fill("#FFFFFF");
-        text("Regular platforms", platformInfoX + 40, height/2 - 25);
-        
+        text("Regular platforms", platformInfoX + 40, height / 2 - 25);
+
         // Bouncy platforms
         fill(255, 240, 80);
-        rect(platformInfoX, height/2 - 5, 30, 10);
+        rect(platformInfoX, height / 2 - 5, 30, 10);
         fill("#FFFFFF");
-        text("Bouncy platforms - jump higher!", platformInfoX + 40, height/2);
-        
+        text("Bouncy platforms - jump higher!", platformInfoX + 40, height / 2);
+
         // Moving platforms
         fill(80, 180, 255);
-        rect(platformInfoX, height/2 + 20, 30, 10);
+        rect(platformInfoX, height / 2 + 20, 30, 10);
         fill("#FFFFFF");
-        text("Moving platforms - slide left & right", platformInfoX + 40, height/2 + 25);
-        
+        text("Moving platforms - slide left & right", platformInfoX + 40, height / 2 + 25);
+
         // Vanishing platforms
         drawingContext.globalAlpha = 0.6;
         fill(220, 220, 255);
-        rect(platformInfoX, height/2 + 45, 30, 10);
+        rect(platformInfoX, height / 2 + 45, 30, 10);
         drawingContext.globalAlpha = 1.0;
         fill("#FFFFFF");
-        text("Vanishing platforms - appear & disappear", platformInfoX + 40, height/2 + 50);
-        
+        text("Vanishing platforms - appear & disappear", platformInfoX + 40, height / 2 + 50);
+
         // Crumbling platforms
         fill(200, 150, 100);
-        rect(platformInfoX, height/2 + 70, 30, 10);
+        rect(platformInfoX, height / 2 + 70, 30, 10);
         // Draw cracks
         stroke(100, 60, 40);
         strokeWeight(1);
-        line(platformInfoX + 10, height/2 + 70, platformInfoX + 20, height/2 + 75);
-        line(platformInfoX + 15, height/2 + 70, platformInfoX + 25, height/2 + 76);
+        line(platformInfoX + 10, height / 2 + 70, platformInfoX + 20, height / 2 + 75);
+        line(platformInfoX + 15, height / 2 + 70, platformInfoX + 25, height / 2 + 76);
         noStroke();
         fill("#FFFFFF");
-        text("Crumbling platforms - fall when stepped on", platformInfoX + 40, height/2 + 75);
-        
+        text("Crumbling platforms - fall when stepped on", platformInfoX + 40, height / 2 + 75);
+
         // Reset alignment
         textAlign(CENTER, CENTER);
 
@@ -2759,7 +2760,7 @@ function updateNoggles() {
             tryPerformJump();
           }
         }
-        
+
         // Don't prevent default for canvas refocusing to work properly
         return true;
       }
@@ -2769,10 +2770,10 @@ function updateNoggles() {
         if (touches && touches.length > 0) {
           return false; // Skip processing if it's actually a touch event
         }
-        
+
         // Always ensure keyboard focus on all mouse clicks
-        document.querySelector('canvas').focus();
-        
+        document.querySelector("canvas").focus();
+
         if (gameState === "start") {
           initializeGame();
           gameState = "playing";
@@ -2790,42 +2791,42 @@ function updateNoggles() {
           initializeGame();
           gameState = "playing";
           // Also focus canvas on touch start to enable keyboard fallbacks
-          document.querySelector('canvas').focus();
+          document.querySelector("canvas").focus();
           return false;
         }
-        
+
         if (gameState === "playing") {
           const t = touches[touches.length - 1];
-          
+
           // Store the touch ID to track it
           if (t && t.id !== undefined) {
             activeTouchIds[t.id] = {
               startX: t.x,
               startY: t.y,
-              time: millis()
+              time: millis(),
             };
           }
-          
+
           if (dist(t.x, t.y, jumpBtn.x, jumpBtn.y) <= jumpBtn.r) {
             jumpBufferTimer = 6;
             tryPerformJump();
             return false;
           }
-          
+
           // Use our improved throw handler - only on touchStart
           if (handleThrowInput(t.x, t.y)) {
             return false;
           }
-          
+
           return false;
         }
         return false;
       }
-      
+
       // Add touchEnded handler to prevent double throws
       function touchEnded() {
         // We never want to throw on touch end - ignore the event completely for throw purposes
-        
+
         // Clean up the touch tracking if we have an ID
         if (touches.length > 0) {
           const t = touches[touches.length - 1];
@@ -2833,7 +2834,7 @@ function updateNoggles() {
             delete activeTouchIds[t.id];
           }
         }
-        
+
         return false;
       }
 
@@ -2843,64 +2844,66 @@ function updateNoggles() {
         if (currentTime - lastThrowTime < THROW_COOLDOWN) {
           return false; // Too soon since last throw
         }
-        
+
         // Handle touch type detection - only allow throws on initial touch
         if (touches && touches.length > 0) {
           // This is a touch-sourced event
           let touchEvent = false;
-          
+
           for (let i = 0; i < touches.length; i++) {
             const t = touches[i];
             // Check if this is a new touch or a moved touch
             if (t.id !== undefined && activeTouchIds[t.id]) {
               const touchInfo = activeTouchIds[t.id];
-              
+
               // If this touch has moved a lot, it might be trying to control the joystick
               // so don't treat it as a throw attempt
               const moveDistance = dist(t.x, t.y, touchInfo.startX, touchInfo.startY);
               if (moveDistance > 20) {
                 return false;
               }
-              
+
               touchEvent = true;
             }
           }
-          
+
           // If it's not from our trackable touch events, don't allow the throw
           if (!touchEvent) {
             return false;
           }
         }
-        
+
         // Is this a valid throw input?
-        if (dist(mx, my, joystick.x, joystick.y) <= joystick.activeRadius || 
-            dist(mx, my, jumpBtn.x, jumpBtn.y) <= jumpBtn.r) {
+        if (
+          dist(mx, my, joystick.x, joystick.y) <= joystick.activeRadius ||
+          dist(mx, my, jumpBtn.x, jumpBtn.y) <= jumpBtn.r
+        ) {
           return false; // Don't throw if clicking controls
         }
-        
+
         // Calculate world coordinates
         const wsx = player.x;
         const wsy = player.y - FRAME_HEIGHT * 1.5; // Throw from higher point
         const wex = cameraX + mx;
         const wey = cameraY + my;
-        
+
         // Calculate direction and power
         const dxRaw = wex - wsx;
         const dyRaw = wey - wsy;
         const distRaw = sqrt(dxRaw * dxRaw + dyRaw * dyRaw);
-        
+
         // Add minimum throw distance to ensure intentionality
         if (distRaw < 20) return false;
-        
+
         const eff = min(distRaw, NOGGLE_MAX_DISTANCE);
         const speed = customMap(eff, 0, NOGGLE_MAX_DISTANCE, NOGGLE_MAX_SPEED * 0.5, NOGGLE_MAX_SPEED);
         const angle = atan2(dyRaw, dxRaw);
         const dx = cos(angle) * speed;
         const dy = sin(angle) * speed;
-        
+
         // Add trail particles for the noggle
         const noggleColor = color(255, 50, 50, 150);
-        
+
         // Create throw with proper initial velocity and enhanced properties
         noggles.push({
           x: wsx,
@@ -2912,12 +2915,12 @@ function updateNoggles() {
           angularVelocity: random(-0.3, 0.3), // More rotation variation
           throwFrame: frameCount, // Track when thrown for effects
           hasTrail: true, // Flag to enable particle trail
-          trailColor: noggleColor // Store the trail color
+          trailColor: noggleColor, // Store the trail color
         });
-        
+
         // Add throw animation to player with more dramatic effect
         player.throwSquash = 1.5; // Increased for more visual impact
-        
+
         // Create throw particles
         for (let i = 0; i < 12; i++) {
           const particleAngle = angle + random(-0.5, 0.5);
@@ -2929,18 +2932,18 @@ function updateNoggles() {
             vy: sin(particleAngle) * particleSpeed,
             size: random(2, 6),
             life: random(10, 25),
-            color: noggleColor
+            color: noggleColor,
           });
         }
-        
+
         // Provide feedback
         if (window.FarcadeSDK?.singlePlayer) {
           window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
         }
-        
+
         // Update the last throw time for debouncing
         lastThrowTime = currentTime;
-        
+
         return true;
       }
 
