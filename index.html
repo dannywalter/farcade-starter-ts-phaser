@@ -202,6 +202,16 @@ body {
       const NOGGLE_MAX_DISTANCE = 300;
       const NOGGLE_MAX_SPEED = 20;
       const NOGGLE_GRAVITY = 0.45;
+      
+      // Define zones for platform introductions (as percentages of the total level length)
+      const INTRO_ZONES = {
+        normal: { start: 0, end: 0.1 },     // First 10% - only normal platforms
+        bouncy: { start: 0.1, end: 0.25 },  // 10-25% - introduce bouncy
+        moving: { start: 0.25, end: 0.45 }, // 25-45% - introduce moving
+        vanishing: { start: 0.45, end: 0.7 }, // 45-70% - introduce vanishing
+        crumbling: { start: 0.7, end: 0.9 }, // 70-90% - introduce crumbling
+        mixed: { start: 0.9, end: 1.0 }     // Final 10% - mix everything
+      };
 
       const brightPalettes = {
         "Deep Fried": ["#B9185C", "#D22209", "#C16710", "#D08B11", "#FFE939"],
@@ -276,6 +286,14 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
         vanishing: { shown: false, text: "NEW! Vanishing platforms appear and disappear!" },
         moving: { shown: false, text: "NEW! These blue platforms move left and right!" },
         bouncy: { shown: false, text: "NEW! Yellow platforms give you an extra boost!" }
+      };
+      
+      // Track if each platform type has had a tutorial platform
+      let tutorialShown = {
+        crumbling: false,
+        vanishing: false,
+        moving: false,
+        bouncy: false
       };
 
       let titleBg;
@@ -412,88 +430,137 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
           let platW = random(MIN_PLAT_WIDTH, lerp(MAX_PLAT_WIDTH, MIN_PLAT_WIDTH, d)),
             vertRange = lerp(PLAYER_MAX_JUMP_HEIGHT * 0.5, PLAYER_MAX_JUMP_HEIGHT, d),
             newY = constrain(prevY + random(-vertRange, vertRange), 100, height - 150);
-          // Determine platform type with a more frequent distribution of special platforms
-          // Default to normal platform
+          // Determine platform type using distance-based progression
           let platformType = "normal";
+          let platformIsTutorial = false;
           
-          // Get platform count for tracking progression through the level
-          const platformCount = platforms.length;
+          // Calculate current level progress as percentage of total level length
+          const levelProgress = xPos / LEVEL_LENGTH;
           
-          // Create a much more varied and frequent pattern of special platforms
-          // First 10 platforms are mostly normal to give the player a gentle start
-          if (platformCount < 10) {
-            // Introduce first bouncy platform at #5
-            if (platformCount === 5) {
-              platformType = "bouncy";
-            }
+          // Determine available platform types based on current level progress
+          const availableTypes = ["normal"]; // Always include normal platforms
+          if (levelProgress >= INTRO_ZONES.bouncy.start) availableTypes.push("bouncy");
+          if (levelProgress >= INTRO_ZONES.moving.start) availableTypes.push("moving");
+          if (levelProgress >= INTRO_ZONES.vanishing.start) availableTypes.push("vanishing");
+          if (levelProgress >= INTRO_ZONES.crumbling.start) availableTypes.push("crumbling");
+          
+          // Each zone specifically introduces and features one platform type
+          if (levelProgress < INTRO_ZONES.bouncy.start) {
+            // Beginning area: Always normal platforms
+            platformType = "normal";
           }
-          // After platform #10, implement a more varied and frequent pattern
-          else {
-            // Use the remainder when dividing by 6 to create a repeating pattern
-            const pattern = platformCount % 6;
+          else if (levelProgress < INTRO_ZONES.moving.start) {
+            // Bouncy introduction zone (first 10%-25%)
+            const zoneProgress = (levelProgress - INTRO_ZONES.bouncy.start) / 
+                               (INTRO_ZONES.bouncy.end - INTRO_ZONES.bouncy.start);
             
-            // Phase 1: Introduce bouncy platforms more frequently (platforms #10-30)
-            if (platformCount < 30) {
-              // Use pattern: 4 regular, 1 bouncy, 1 regular - repeating
-              // This means every 6th platform will be bouncy
-              if (pattern === 4) {
-                platformType = "bouncy";
-              }
+            // Higher chance of bouncy platforms as player progresses through zone
+            const bouncyChance = 0.3 + zoneProgress * 0.2; // 30% to 50% chance
+            
+            // Choose platform type with weighted probability
+            platformType = random() < bouncyChance ? "bouncy" : "normal";
+            
+            // Force tutorial platform at the beginning of the bouncy zone
+            if (!tutorialShown.bouncy && levelProgress < INTRO_ZONES.bouncy.start + 0.02) {
+              platformType = "bouncy";
+              tutorialShown.bouncy = true;
+              platformIsTutorial = true;
             }
-            // Phase 2: Introduce bouncy and moving platforms (platforms #30-60)
-            else if (platformCount < 60) {
-              // For even-numbered cycles: 2 regular, 1 bouncy, 2 regular, 1 moving
-              if (Math.floor(platformCount / 6) % 2 === 0) {
-                if (pattern === 2) platformType = "bouncy";
-                else if (pattern === 5) platformType = "moving";
-              } 
-              // For odd-numbered cycles: alternate the pattern
-              else {
-                if (pattern === 1) platformType = "moving";
-                else if (pattern === 4) platformType = "bouncy";
-              }
+          }
+          else if (levelProgress < INTRO_ZONES.vanishing.start) {
+            // Moving platforms zone (25%-45%)
+            const typeRoll = random();
+            
+            if (typeRoll < 0.4) {
+              platformType = "moving";
+            } else if (typeRoll < 0.6) {
+              platformType = "bouncy";
+            } else {
+              platformType = "normal";
             }
-            // Phase 3: Add vanishing platforms to the mix (platforms #60-90)
-            else if (platformCount < 90) {
-              // Create more varied pattern with all three types
-              if (pattern === 1) platformType = "bouncy";
-              else if (pattern === 3) platformType = "moving";
-              else if (pattern === 5) platformType = "vanishing";
+            
+            // Force tutorial platform at the beginning of the moving zone
+            if (!tutorialShown.moving && levelProgress < INTRO_ZONES.moving.start + 0.02) {
+              platformType = "moving";
+              tutorialShown.moving = true;
+              platformIsTutorial = true;
             }
-            // Phase 4: Add crumbling platforms (platforms #90-120)
-            else if (platformCount < 120) {
-              // Even more varied pattern with all four platform types
-              if (pattern === 1) platformType = "bouncy";
-              else if (pattern === 2) platformType = "moving";
-              else if (pattern === 4) platformType = "vanishing";
-              else if (pattern === 5) platformType = "crumbling";
+          }
+          else if (levelProgress < INTRO_ZONES.crumbling.start) {
+            // Vanishing platforms zone (45%-70%)
+            const typeRoll = random();
+            
+            if (typeRoll < 0.35) {
+              platformType = "vanishing";
+            } else if (typeRoll < 0.55) {
+              platformType = "moving";
+            } else if (typeRoll < 0.7) {
+              platformType = "bouncy";
+            } else {
+              platformType = "normal";
             }
-            // Final phase: More randomized but still frequent special platforms
-            else {
-              // Base chance of a special platform increases with difficulty
-              const baseChance = lerp(0.4, 0.6, d);
-              
-              // Ensure we have at least one special platform type every 3-4 platforms
-              // This creates a pattern of roughly: 2-3 normal, 1-2 special, repeating
-              if (pattern === 1 || pattern === 4 || (pattern === 2 && random() < baseChance)) {
-                // Choose platform type with weighted random selection
-                const typeRoll = random();
-                if (typeRoll < 0.25) platformType = "bouncy";
-                else if (typeRoll < 0.5) platformType = "moving";
-                else if (typeRoll < 0.75) platformType = "vanishing";
-                else platformType = "crumbling";
-                
-                // Occasionally create pairs of the same type for more challenge
-                if (platforms.length > 0) {
-                  const prevPlatform = platforms[platforms.length - 1];
-                  if (prevPlatform.type !== "normal" && random() < 0.3) {
-                    // 30% chance to repeat the previous platform type
-                    platformType = prevPlatform.type;
-                  }
-                }
+            
+            // Force tutorial platform at the beginning of the vanishing zone
+            if (!tutorialShown.vanishing && levelProgress < INTRO_ZONES.vanishing.start + 0.02) {
+              platformType = "vanishing";
+              tutorialShown.vanishing = true;
+              platformIsTutorial = true;
+            }
+          }
+          else if (levelProgress < INTRO_ZONES.mixed.start) {
+            // Crumbling platforms zone (70%-90%)
+            const typeRoll = random();
+            
+            if (typeRoll < 0.3) {
+              platformType = "crumbling";
+            } else if (typeRoll < 0.5) {
+              platformType = "vanishing";
+            } else if (typeRoll < 0.7) {
+              platformType = "moving";
+            } else if (typeRoll < 0.85) {
+              platformType = "bouncy";
+            } else {
+              platformType = "normal";
+            }
+            
+            // Force tutorial platform at the beginning of the crumbling zone
+            if (!tutorialShown.crumbling && levelProgress < INTRO_ZONES.crumbling.start + 0.02) {
+              platformType = "crumbling";
+              tutorialShown.crumbling = true;
+              platformIsTutorial = true;
+            }
+          }
+          else {
+            // Final mixed zone (90%-100%): balanced mix of all platform types
+            // Use a more sophisticated distribution with increasing difficulty
+            const finalZoneProgress = (levelProgress - INTRO_ZONES.mixed.start) / 
+                                    (INTRO_ZONES.mixed.end - INTRO_ZONES.mixed.start);
+            
+            // Gradually decrease normal platforms, increase special platforms
+            const normalChance = 0.3 - finalZoneProgress * 0.2; // 30% down to 10%
+            const typeRoll = random();
+            
+            if (typeRoll < normalChance) {
+              platformType = "normal";
+            } else {
+              // Select randomly from all special platform types
+              const specialTypes = ["bouncy", "moving", "vanishing", "crumbling"];
+              platformType = specialTypes[Math.floor(random() * specialTypes.length)];
+            }
+            
+            // In the final zone, occasionally create challenging platform sequences
+            if (platforms.length > 0 && random() < 0.4) {
+              const prevPlatform = platforms[platforms.length - 1];
+              if (prevPlatform.type !== "normal") {
+                // 40% chance to repeat the previous platform type for increased challenge
+                platformType = prevPlatform.type;
               }
             }
           }
+          
+          // Calculate zone-based difficulty scaling factors (0-1 range)
+          const zoneProgress = levelProgress / INTRO_ZONES.mixed.start; // 0-1 over the course of the main zones
+          const difficultyFactor = min(zoneProgress * 1.2, 1); // Cap at 1.0, but ramp up slightly faster
           
           // Create the platform with type-specific properties
           let platform = {
@@ -502,35 +569,126 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
             w: platW,
             h: 20,
             color: activeDullPalette[floor(random(activeDullPalette.length))],
-            type: platformType
+            type: platformType,
+            isTutorial: platformIsTutorial,
+            zoneDifficulty: zoneProgress // Store the zone difficulty for visual indicators
           };
           
-          // Add type-specific properties
+          // Add type-specific properties that scale with zone progression
           switch(platformType) {
             case "crumbling":
+              // Make platforms crumble faster as game progresses
+              const baseMax = platformIsTutorial ? 40 : 30; // Tutorial platforms last a bit longer
+              const minMax = 15; // Minimum frames before collapse at max difficulty
               platform.crumbleTimer = -1; // -1 means not triggered yet
-              platform.crumbleMax = 30; // Frames before collapse
+              platform.crumbleMax = round(lerp(baseMax, minMax, difficultyFactor)); 
               platform.originalColor = platform.color;
+              
+              // Set special color for tutorial platform
+              if (platformIsTutorial) {
+                platform.color = color(220, 170, 120); // More distinctive color
+              }
               break;
+              
             case "vanishing":
               platform.visibleTimer = 0;
-              platform.cycleLength = random(60, 120); // 1-2 seconds cycle
+              
+              if (platformIsTutorial) {
+                // Tutorial vanishing platforms are more predictable with longer visible time
+                platform.cycleLength = 120; // 2 seconds cycle
+                platform.visibleRatio = 0.7; // 70% of the time visible
+              } else {
+                // Make cycles shorter and visible time reduced as game progresses
+                const baseCycle = 120; // 2 seconds at start
+                const minCycle = 60; // 1 second at end
+                platform.cycleLength = round(lerp(baseCycle, minCycle, difficultyFactor));
+                
+                // Decrease visibility ratio from 60% to 40% as game progresses
+                platform.visibleRatio = lerp(0.6, 0.4, difficultyFactor);
+              }
+              
               platform.phase = random(TWO_PI); // Random starting phase
               platform.isVisible = true;
+              
+              // Set special color for tutorial platform 
+              if (platformIsTutorial) {
+                platform.color = color(220, 220, 255); // More distinctive color
+                platform.phase = 0; // Start in visible state
+              }
               break;
+              
             case "moving":
               platform.startX = xPos;
-              platform.amplitude = random(50, 120); // Wider horizontal movement range
-              platform.speed = random(0.01, 0.03);
+              platform.startY = newY;
+              
+              if (platformIsTutorial) {
+                // Tutorial moving platforms move slower and less distance
+                platform.amplitude = 70;
+                platform.speed = 0.015;
+                platform.verticalMovement = false;
+              } else {
+                // Increase movement range and speed as game progresses
+                const baseAmplitude = 50;
+                const maxAmplitude = 150;
+                platform.amplitude = lerp(baseAmplitude, maxAmplitude, difficultyFactor);
+                
+                const baseSpeed = 0.01;
+                const maxSpeed = 0.04;
+                platform.speed = lerp(baseSpeed, maxSpeed, difficultyFactor);
+                
+                // Add vertical movement to later zone platforms for more challenge
+                if (difficultyFactor > 0.6 && random() < 0.6) {
+                  platform.verticalMovement = true;
+                  platform.verticalPhase = random(TWO_PI);
+                  platform.verticalSpeed = platform.speed * random(0.6, 1.0);
+                  
+                  // Vertical movement amplitude increases with difficulty
+                  const minVertAmplitude = 20;
+                  const maxVertAmplitude = 40;
+                  platform.verticalAmplitude = lerp(minVertAmplitude, maxVertAmplitude, 
+                                               (difficultyFactor - 0.6) / 0.4);
+                  
+                  // Use a slightly different color for vertical-movement platforms
+                  platform.color = color(100, 150, 230); // Purplish blue
+                } else {
+                  platform.verticalMovement = false;
+                  platform.color = color(80, 180, 255); // Standard blue
+                }
+              }
+              
               platform.phase = random(TWO_PI);
-              // Store original y-position for reference
-              platform.y = newY;
+              
+              // Set special color for tutorial platform
+              if (platformIsTutorial) {
+                platform.color = color(100, 200, 255); // Brighter blue
+                platform.verticalMovement = false;
+              }
               break;
+              
             case "bouncy":
-              platform.bounceFactor = 1.3; // Jump 30% higher (was 70% higher)
+              if (platformIsTutorial) {
+                // Tutorial bouncy platforms are more predictable
+                platform.bounceFactor = 1.3; // Consistent 30% boost
+              } else {
+                // Increase bounce height as game progresses
+                const baseBounce = 1.2; // 20% boost at start
+                const maxBounce = 1.5; // 50% boost at end
+                platform.bounceFactor = lerp(baseBounce, maxBounce, difficultyFactor);
+              }
+              
               platform.springCompression = 0;
-              // Use a more springy color (yellowish)
-              platform.color = color(255, 240, 80);
+              
+              // Use a more springy color (yellowish), brighter for tutorial
+              platform.color = platformIsTutorial ? 
+                color(255, 255, 80) : // Bright yellow for tutorial
+                color(255, 240, 80);  // Standard yellow
+              break;
+              
+            case "normal":
+              // Even normal platforms get some visual treatment if they're tutorial platforms
+              if (platformIsTutorial) {
+                platform.color = color(220, 220, 220); // Brighter
+              }
               break;
           }
           
@@ -875,6 +1033,84 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
       }
 
       function drawPlatforms() {
+        // Draw difficulty-based trail particles for platforms in later zones
+        // This runs once per frame before drawing platforms
+        platforms.forEach(p => {
+          // Only create trail particles for platforms that are within view
+          if (p.x + p.w < cameraX || p.x > cameraX + width) {
+            return; // Skip off-screen platforms
+          }
+          
+          // Create difficulty trail particles based on zone progression
+          if (p.zoneDifficulty > 0.4 && frameCount % 10 === 0) {
+            const difficultyIntensity = map(p.zoneDifficulty, 0.4, 1.0, 0.2, 1.0);
+            
+            // Create different trail effects based on platform type and difficulty
+            if (random() < difficultyIntensity * 0.4) {
+              let particleColor;
+              
+              // Use different colors based on platform type
+              switch(p.type) {
+                case "bouncy":
+                  particleColor = color(255, 240, 80, 100);
+                  break;
+                case "moving":
+                  particleColor = color(80, 180, 255, 100);
+                  break;
+                case "vanishing":
+                  particleColor = color(220, 220, 255, 100);
+                  break;
+                case "crumbling":
+                  particleColor = color(220, 170, 120, 100);
+                  break;
+                default:
+                  particleColor = color(200, 200, 200, 80);
+              }
+              
+              // Create different particle effects based on difficulty level
+              if (p.zoneDifficulty > 0.8) {
+                // Advanced zone: Intense particles
+                particles.push({
+                  x: p.x + random(p.w),
+                  y: p.y + random(-3, 0),
+                  vx: random(-0.5, 0.5),
+                  vy: random(-0.8, -0.4),
+                  color: particleColor,
+                  size: random(2, 4) * difficultyIntensity,
+                  life: 20 * difficultyIntensity,
+                  maxLife: 20 * difficultyIntensity,
+                  type: "sparkle"
+                });
+              } else if (p.zoneDifficulty > 0.6) {
+                // Mid-game: Medium particles
+                particles.push({
+                  x: p.x + random(p.w),
+                  y: p.y + random(p.h),
+                  vx: random(-0.3, 0.3),
+                  vy: random(-0.6, -0.2),
+                  color: particleColor,
+                  size: random(1.5, 3) * difficultyIntensity,
+                  life: 15 * difficultyIntensity,
+                  maxLife: 15 * difficultyIntensity,
+                  type: p.type === "vanishing" ? "sparkle" : "default"
+                });
+              } else {
+                // Early zones: Subtle particles
+                particles.push({
+                  x: p.x + random(p.w),
+                  y: p.y + p.h - 2,
+                  vx: random(-0.2, 0.2),
+                  vy: random(-0.4, -0.1),
+                  color: particleColor,
+                  size: random(1, 2) * difficultyIntensity,
+                  life: 10 * difficultyIntensity,
+                  maxLife: 10 * difficultyIntensity
+                });
+              }
+            }
+          }
+        });
+      
         // Update crumbling platforms first
         for (let i = platforms.length - 1; i >= 0; i--) {
           const p = platforms[i];
@@ -941,6 +1177,46 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
         // Draw all remaining platforms
         rectMode(CORNER);
         platforms.forEach((p) => {
+          // Check if this is a tutorial platform for special rendering
+          const isTutorial = p.isTutorial === true;
+          
+          // Common tutorial platform rendering before type-specific rendering
+          if (isTutorial) {
+            // Create periodic pulse effect for tutorial platforms
+            const pulseAmount = sin(frameCount * 0.1) * 0.5 + 0.5; // 0-1 oscillation
+            
+            // Draw attention-grabbing glow
+            drawingContext.shadowBlur = 15 + pulseAmount * 10;
+            drawingContext.shadowColor = 'rgba(255, 255, 255, 0.7)';
+            
+            // Emit subtle particles to draw attention
+            if (frameCount % 10 === 0) {
+              particles.push({
+                x: p.x + random(p.w),
+                y: p.y - 5,
+                vx: random(-0.5, 0.5),
+                vy: random(-1, -0.5),
+                color: color(255, 255, 200, 150),
+                size: random(3, 6),
+                life: 40,
+                maxLife: 40,
+                type: "sparkle"
+              });
+            }
+            
+            // Add "NEW!" indicator text above tutorial platforms
+            if (frameCount % 90 < 60) { // Blink the text
+              fill(255, 255, 0);
+              stroke(0);
+              strokeWeight(3);
+              textSize(16);
+              textStyle(BOLD);
+              text("NEW!", p.x + p.w/2, p.y - 25);
+              textStyle(NORMAL);
+              strokeWeight(0);
+            }
+          }
+          
           // Handle different platform types
           switch(p.type) {
             case "crumbling":
@@ -990,18 +1266,22 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
               p.visibleTimer = (p.visibleTimer + 1) % p.cycleLength;
               const visibilityPhase = (p.visibleTimer / p.cycleLength + p.phase / TWO_PI) % 1;
               
-              // Determine visibility - visible for 60% of cycle
-              p.isVisible = visibilityPhase < 0.6;
+              // Use platform-specific visibility ratio (defaults to 0.6 if not set)
+              const visibleRatio = p.visibleRatio || 0.6;
+              p.isVisible = visibilityPhase < visibleRatio;
               
               if (p.isVisible) {
                 // Calculate opacity based on phase for smooth transitions
                 let opacity = 1;
-                if (visibilityPhase < 0.1) {
+                const fadeInOut = 0.1; // Fade transition time (10% of cycle) 
+                const platformVisibleRatio = p.visibleRatio || 0.6;
+                
+                if (visibilityPhase < fadeInOut) {
                   // Fade in
-                  opacity = map(visibilityPhase, 0, 0.1, 0, 1);
-                } else if (visibilityPhase > 0.5) {
+                  opacity = map(visibilityPhase, 0, fadeInOut, 0, 1);
+                } else if (visibilityPhase > (platformVisibleRatio - fadeInOut)) {
                   // Fade out
-                  opacity = map(visibilityPhase, 0.5, 0.6, 1, 0);
+                  opacity = map(visibilityPhase, platformVisibleRatio - fadeInOut, platformVisibleRatio, 1, 0);
                 }
                 
                 // Apply the opacity
@@ -1012,7 +1292,8 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
                 rect(p.x, p.y, p.w, p.h);
                 
                 // Add shimmer particles when fading
-                if (random() < 0.3 && (visibilityPhase < 0.1 || visibilityPhase > 0.5)) {
+                // Use the same constants we already defined above
+                if (random() < 0.3 && (visibilityPhase < fadeInOut || visibilityPhase > (platformVisibleRatio - fadeInOut))) {
                   particles.push({
                     x: p.x + random(p.w),
                     y: p.y + random(p.h),
@@ -1026,19 +1307,26 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
                   });
                   
                   // Occasionally add a text hint if player is nearby
-                  if (random() < 0.05 && dist(player.x, player.y, p.x + p.w/2, p.y) < 150) {
+                  // Enhanced hint generation for tutorial and nearby platforms
+                  const isNearPlayer = dist(player.x, player.y, p.x + p.w/2, p.y) < 250;
+                  
+                  // Show more hints for tutorial platforms or when player is nearby
+                  if ((p.isTutorial && frameCount % 90 < 30) || 
+                      (isNearPlayer && random() < 0.05)) {
+                    
+                    // Create more attention-grabbing text hint
                     particles.push({
                       x: p.x + p.w/2,
                       y: p.y - 15,
                       vx: 0,
                       vy: -1,
-                      color: color(255, 255, 255),
+                      color: p.isTutorial ? color(255, 255, 100) : color(255, 255, 255),
                       size: 1,
                       life: 40,
                       maxLife: 40,
                       type: "text",
-                      text: visibilityPhase < 0.1 ? "Appearing!" : "Vanishing!",
-                      textSize: 10
+                      text: visibilityPhase < fadeInOut ? "Appearing!" : "Vanishing!",
+                      textSize: p.isTutorial ? 14 : 10
                     });
                   }
                 }
@@ -1050,13 +1338,88 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
               const horizOffset = sin(frameCount * p.speed + p.phase) * p.amplitude;
               p.x = p.startX + horizOffset;
               
-              // Draw platform with slight trail effect
-              fill(color(80, 180, 255)); // Change color to blue for horizontal movement
+              // Handle vertical movement if enabled
+              if (p.verticalMovement) {
+                const vertOffset = sin(frameCount * p.verticalSpeed + p.verticalPhase) * p.verticalAmplitude;
+                p.y = p.startY + vertOffset;
+                
+                // Add vertical trail effect
+                if (frameCount % 10 === 0 && abs(vertOffset) > p.verticalAmplitude * 0.6) {
+                  const trailDirY = vertOffset > 0 ? -1 : 1;
+                  
+                  // Add vertical trail particles
+                  for (let i = 0; i < 2; i++) {
+                    particles.push({
+                      x: p.x + random(p.w),
+                      y: p.y + (trailDirY < 0 ? p.h : 0),
+                      vx: random(-0.3, 0.3),
+                      vy: trailDirY * random(0.5, 1),
+                      color: color(130, 180, 255, 100),
+                      size: random(2, 5),
+                      life: 15,
+                      maxLife: 15,
+                      type: "sparkle"
+                    });
+                  }
+                  
+                  // Add vertical movement indicators
+                  if (abs(vertOffset) > p.verticalAmplitude * 0.9 && random() < 0.2) {
+                    particles.push({
+                      x: p.x + p.w/2,
+                      y: p.y + (trailDirY < 0 ? p.h + 15 : -15),
+                      vx: 0,
+                      vy: trailDirY * -0.5,
+                      color: color(150, 220, 255),
+                      size: 1,
+                      life: 20,
+                      maxLife: 20,
+                      type: "text",
+                      text: trailDirY < 0 ? "↓" : "↑",
+                      textSize: 12
+                    });
+                  }
+                }
+                
+                // Create 2D trail effect when both movements are at extremes
+                if (frameCount % 15 === 0 && 
+                    abs(horizOffset) > p.amplitude * 0.7 && 
+                    abs(vertOffset) > p.verticalAmplitude * 0.7) {
+                  // Add a special vortex-like particle effect at corners
+                  for (let i = 0; i < 3; i++) {
+                    const angle = random(TWO_PI);
+                    particles.push({
+                      x: p.x + (horizOffset > 0 ? p.w : 0),
+                      y: p.y + (vertOffset > 0 ? p.h : 0),
+                      vx: cos(angle) * random(0.5, 1),
+                      vy: sin(angle) * random(0.5, 1),
+                      color: color(150, 200, 255, 150),
+                      size: random(3, 6),
+                      life: 25,
+                      maxLife: 25,
+                      type: "sparkle"
+                    });
+                  }
+                }
+              }
+              
+              // Draw platform with trail effect
+              fill(p.color);
               stroke(0, 0, 0, 30);
               strokeWeight(2);
+              
+              // Add indication of vertical movement with special pattern
+              if (p.verticalMovement) {
+                // Create a gradient pattern to indicate vertical movement
+                const patternHeight = 4;
+                for (let i = 0; i < p.h; i += patternHeight * 2) {
+                  fill(color(100, 170, 240));
+                  rect(p.x, p.y + i, p.w, patternHeight);
+                }
+              }
+              
               rect(p.x, p.y, p.w, p.h);
               
-              // Add subtle movement trail particles
+              // Add horizontal movement trail particles
               if (frameCount % 8 === 0 && abs(horizOffset) > p.amplitude * 0.6) {
                 const trailDir = horizOffset > 0 ? -1 : 1;
                 const edgeX = p.x + (trailDir > 0 ? 0 : p.w);
@@ -1135,17 +1498,44 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
               
               // Spring gradually decompresses if compressed
               p.springCompression = max(0, p.springCompression - 0.5);
-              break;
-              
-            default:
+              break;              default:
               // Normal platform
               fill(p.color);
               stroke(0, 0, 0, 30);
               strokeWeight(2);
+              
+              // Add zone difficulty visual indicators for normal platforms
+              if (p.zoneDifficulty > 0.5 && !p.isTutorial) {
+                // Apply a difficulty pattern or highlight
+                const diffStripes = round(map(p.zoneDifficulty, 0.5, 1.0, 2, 5));
+                const stripeW = p.w / (diffStripes * 2 - 1);
+                
+                // Draw difficulty stripes
+                for (let i = 0; i < diffStripes; i++) {
+                  const stripeFill = lerpColor(
+                    color(p.color),
+                    color(150, 150, 150),
+                    map(p.zoneDifficulty, 0.5, 1.0, 0.1, 0.3)
+                  );
+                  fill(stripeFill);
+                  rect(p.x + i * stripeW * 2, p.y, stripeW, p.h);
+                }
+                
+                // Add a subtle glow intensity based on difficulty
+                if (p.zoneDifficulty > 0.7) {
+                  const glowIntensity = map(p.zoneDifficulty, 0.7, 1.0, 3, 8);
+                  drawingContext.shadowBlur = glowIntensity;
+                  drawingContext.shadowColor = 'rgba(200, 200, 200, 0.3)';
+                }
+              }
+              
               rect(p.x, p.y, p.w, p.h);
           }
         });
         noStroke();
+        
+        // Reset shadow settings at the end of drawing platforms
+        drawingContext.shadowBlur = 0;
       }
 
       function drawThings() {
@@ -1626,6 +2016,41 @@ function updateNoggles() {
                 }
               }
               
+              // Special effects for tutorial platforms when stepped on
+              if (p.isTutorial) {
+                // Create a circular wave effect
+                const waveCount = 8;
+                for (let i = 0; i < waveCount; i++) {
+                  const angle = (i / waveCount) * TWO_PI;
+                  particles.push({
+                    x: p.x + p.w/2 + cos(angle) * 20,
+                    y: p.y + sin(angle) * 10,
+                    vx: cos(angle) * 2,
+                    vy: sin(angle) * 1.5 - 1,
+                    color: color(255, 255, 180, 150),
+                    size: random(5, 8),
+                    life: 40,
+                    maxLife: 40,
+                    type: "sparkle"
+                  });
+                }
+                
+                // Add "Tutorial" text that rises upward
+                particles.push({
+                  x: p.x + p.w/2,
+                  y: p.y - 25,
+                  vx: 0,
+                  vy: -1.2,
+                  color: color(255, 255, 100),
+                  size: 1,
+                  life: 80,
+                  maxLife: 80,
+                  type: "text",
+                  text: "Tutorial Platform!",
+                  textSize: 14
+                });
+              }
+              
               // Platform-specific behaviors when landing
               switch(p.type) {
                 case "crumbling":
@@ -1674,6 +2099,45 @@ function updateNoggles() {
                   // Compress spring and apply bounce
                   p.springCompression = 5;
                   player.velocityY = -15 * p.bounceFactor; // Apply moderately higher jump
+                  
+                  // In higher difficulty zones, add some horizontal momentum too
+                  if (p.zoneDifficulty > 0.7 && !p.isTutorial) {
+                    const horizontalBoostFactor = map(p.zoneDifficulty, 0.7, 1.0, 0.3, 0.8);
+                    
+                    // Determine direction based on player's position on the platform
+                    const playerPosOnPlat = (player.x - p.x) / p.w;
+                    
+                    // Higher boost when near edges, minimal in center
+                    const edgeFactor = abs(playerPosOnPlat - 0.5) * 2; // 0 at center, 1 at edges
+                    const boostMagnitude = 4 * horizontalBoostFactor * edgeFactor;
+                    
+                    // Apply horizontal boost away from center
+                    if (playerPosOnPlat < 0.5) {
+                      // Left side - boost left
+                      player.velocityX = -boostMagnitude;
+                    } else {
+                      // Right side - boost right
+                      player.velocityX = boostMagnitude;
+                    }
+                    
+                    // Add side-boost indicator for advanced zone bouncy platforms
+                    if (edgeFactor > 0.6) {
+                      const boostDirection = playerPosOnPlat < 0.5 ? "←" : "→";
+                      particles.push({
+                        x: player.x,
+                        y: player.y - 35,
+                        vx: player.velocityX * 0.1,
+                        vy: -1.5,
+                        color: color(255, 220, 100),
+                        size: 2,
+                        life: 30,
+                        maxLife: 30,
+                        type: "text",
+                        text: boostDirection + " BOOST!",
+                        textSize: 14
+                      });
+                    }
+                  }
                   
                   // Add bounce particles
                   for (let i = 0; i < 12; i++) {
@@ -1819,7 +2283,9 @@ function updateNoggles() {
         text(`Score: ${score}`, width / 2, 10);
         
         // Draw level section indicator with updated naming to match more varied level
-        const levelSection = floor(player.x / (LEVEL_LENGTH / 5));
+        // Calculate the exact progress through the level
+        const levelProgress = player.x / LEVEL_LENGTH;
+        const levelSection = floor(levelProgress * 5);
         const sectionName = [
           "Starting Area", 
           "Bouncy Challenges", 
@@ -1832,6 +2298,85 @@ function updateNoggles() {
         textAlign(CENTER, TOP);
         fill(255, 255, 220);
         text(sectionName, width / 2, 40);
+        
+        // Draw a fancy progress bar that shows zone boundaries
+        const progressBarWidth = width * 0.6;
+        const progressBarHeight = 8;
+        const progressBarX = width/2 - progressBarWidth/2;
+        const progressBarY = 65;
+        
+        // Draw background track
+        noStroke();
+        fill(50, 50, 50, 100);
+        rect(progressBarX, progressBarY, progressBarWidth, progressBarHeight, 4);
+        
+        // Draw progress
+        const progressWidth = progressBarWidth * levelProgress;
+        
+        // Create a gradient for the progress bar based on difficulty
+        drawingContext.save();
+        const gradient = drawingContext.createLinearGradient(
+          progressBarX, progressBarY,
+          progressBarX + progressBarWidth, progressBarY
+        );
+        
+        // Add color stops for different zones
+        gradient.addColorStop(0, 'rgb(150, 255, 150)'); // Green for easy beginning
+        gradient.addColorStop(INTRO_ZONES.bouncy.start, 'rgb(220, 255, 100)'); // Yellow-green for bouncy
+        gradient.addColorStop(INTRO_ZONES.moving.start, 'rgb(100, 200, 255)'); // Blue for moving
+        gradient.addColorStop(INTRO_ZONES.vanishing.start, 'rgb(200, 180, 255)'); // Purple for vanishing
+        gradient.addColorStop(INTRO_ZONES.crumbling.start, 'rgb(255, 150, 100)'); // Orange for crumbling
+        gradient.addColorStop(INTRO_ZONES.mixed.start, 'rgb(255, 80, 80)'); // Red for final zone
+        
+        drawingContext.fillStyle = gradient;
+        rect(progressBarX, progressBarY, progressWidth, progressBarHeight, 4);
+        drawingContext.restore();
+        
+        // Draw zone boundary markers
+        stroke(255, 255, 255, 150);
+        strokeWeight(1.5);
+        
+        // Draw markers for each zone boundary
+        for (const zone in INTRO_ZONES) {
+          if (INTRO_ZONES[zone].start > 0) { // Skip first zone marker
+            const markerX = progressBarX + (progressBarWidth * INTRO_ZONES[zone].start);
+            line(markerX, progressBarY - 2, markerX, progressBarY + progressBarHeight + 2);
+            
+            // Add small zone indicators as tiny icons or colored dots
+            noStroke();
+            switch(zone) {
+              case "bouncy":
+                fill(255, 240, 80);
+                break;
+              case "moving":
+                fill(80, 180, 255);
+                break;
+              case "vanishing":
+                fill(220, 220, 255);
+                break;
+              case "crumbling":
+                fill(220, 170, 120);
+                break;
+              case "mixed":
+                fill(255, 100, 100);
+                break;
+              default:
+                fill(200, 200, 200);
+            }
+            
+            // Draw icon dots above markers
+            circle(markerX, progressBarY - 10, 6);
+          }
+        }
+        
+        // Draw player position indicator
+        noStroke();
+        fill(255);
+        triangle(
+          progressBarX + progressWidth, progressBarY + progressBarHeight + 6,
+          progressBarX + progressWidth - 5, progressBarY + progressBarHeight + 1,
+          progressBarX + progressWidth + 5, progressBarY + progressBarHeight + 1
+        );
         
         // Draw small platform type icons for this section
         const iconSize = 15;
