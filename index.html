@@ -9,6 +9,48 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
     <!-- Farcade SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@farcade/game-sdk@latest/dist/index.min.js"></script>
+    <!-- Keyboard Input Tracker (Inline) -->
+    <script>
+    // KeyTracker - A simple module to track key states regardless of canvas focus
+    class KeyTracker {
+      constructor() {
+        this.keys = {};
+        this._setupEventListeners();
+      }
+
+      // Set up global keyboard listeners
+      _setupEventListeners() {
+        // Track key down events
+        window.addEventListener('keydown', (e) => {
+          this.keys[e.keyCode] = true;
+          this.keys[e.key.toLowerCase()] = true;
+        });
+
+        // Track key up events
+        window.addEventListener('keyup', (e) => {
+          this.keys[e.keyCode] = false;
+          this.keys[e.key.toLowerCase()] = false;
+        });
+
+        // Clear keys when window loses focus
+        window.addEventListener('blur', () => {
+          this.keys = {};
+        });
+      }
+
+      // Check if a key is pressed
+      isKeyDown(keyCode) {
+        // Accept either key codes or key strings
+        if (typeof keyCode === 'string') {
+          return this.keys[keyCode.toLowerCase()] === true;
+        }
+        return this.keys[keyCode] === true;
+      }
+    }
+
+    // Create a singleton instance
+    const keyTracker = new KeyTracker();
+    </script>
     <style>
       html, body {
   margin: 0;
@@ -225,7 +267,8 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
         loadedThingGrayImgs = [];
       let coyoteTimer = 0,
         jumpBufferTimer = 0,
-        tagTimer = TAG_TIMER_MAX;
+        tagTimer = TAG_TIMER_MAX,
+        previousJumpState = false;  // Track jump button state for edge detection
       
       // Help system for platform types
       let helpTexts = {
@@ -263,6 +306,17 @@ const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
   
         // Initially focus the canvas to ensure keyboard input works from the start
         cnv.elt.focus();
+        
+        // Handle canvas click events to ensure focus is regained
+        cnv.elt.addEventListener('click', function() {
+          cnv.elt.focus();
+        });
+        
+        // Add event for window focus to prevent stuck keys
+        window.addEventListener('focus', function() {
+          // Reset any potentially stuck keys by using the keyTracker
+          document.querySelector('canvas').focus();
+        });
 
         noSmooth();
         textAlign(CENTER, CENTER);
@@ -320,6 +374,7 @@ for (let i = 0; i < TOTAL_THING_FRAMES; i++) {
         coyoteTimer = 0;
         jumpBufferTimer = 0;
         tagTimer = TAG_TIMER_MAX;
+        previousJumpState = false;
 
         player = {
           x: 100,
@@ -1278,24 +1333,36 @@ function updateNoggles() {
           jumpBuffered: jumpBufferTimer > 0
         };
         
-        // Keyboard inputs
-        inputs.moveLeft = keyIsDown(LEFT_ARROW) || keyIsDown(65);
-        inputs.moveRight = keyIsDown(RIGHT_ARROW) || keyIsDown(68);
+        // Keyboard inputs using global keyTracker (works regardless of canvas focus)
+        // Using numeric key codes for arrow keys (LEFT=37, RIGHT=39, UP=38) along with WASD
+        inputs.moveLeft = keyTracker.isKeyDown(37) || keyTracker.isKeyDown('a');
+        inputs.moveRight = keyTracker.isKeyDown(39) || keyTracker.isKeyDown('d');
+        inputs.jump = keyTracker.isKeyDown(38) || keyTracker.isKeyDown('w') || keyTracker.isKeyDown(32); // Space
         
         // Touch/mouse inputs
         for (const t of touches) {
           if (dist(t.x, t.y, joystick.x, joystick.y) < joystick.activeRadius) {
             const dx = t.x - joystick.x;
-            inputs.moveLeft = dx < -joystick.inner/2;
-            inputs.moveRight = dx > joystick.inner/2;
+            inputs.moveLeft = inputs.moveLeft || dx < -joystick.inner/2;
+            inputs.moveRight = inputs.moveRight || dx > joystick.inner/2;
             // Store analog value for variable speed
             inputs.moveStrength = constrain(abs(dx) / (joystick.outer - joystick.inner), 0, 1);
           }
           
+          // Check for touch-based jump button presses
           if (dist(t.x, t.y, jumpBtn.x, jumpBtn.y) < jumpBtn.r) {
             inputs.jump = true;
           }
         }
+        
+        // If jump is detected through keyboard or touch, trigger the jump buffer
+        if (inputs.jump && !previousJumpState) {
+          jumpBufferTimer = 6;
+          tryPerformJump();
+        }
+        
+        // Track the previous jump state to detect new presses
+        previousJumpState = inputs.jump;
         
         return inputs;
       }
@@ -1974,11 +2041,17 @@ function updateNoggles() {
 
       function keyPressed() {
         if (gameState === "playing") {
-          if ([UP_ARROW, 87, 32].includes(keyCode)) {
+          // The actual key checking is now handled by the global keyTracker in collectInputs
+          // We only need to handle jump buffering here
+          // UP_ARROW=38, W=87, SPACE=32
+          if ([38, 87, 32].includes(keyCode)) {
             jumpBufferTimer = 6;
             tryPerformJump();
           }
         }
+        
+        // Don't prevent default for canvas refocusing to work properly
+        return true;
       }
 
       function mousePressed() {
@@ -1987,11 +2060,12 @@ function updateNoggles() {
           return false; // Skip processing if it's actually a touch event
         }
         
+        // Always ensure keyboard focus on all mouse clicks
+        document.querySelector('canvas').focus();
+        
         if (gameState === "start") {
           initializeGame();
           gameState = "playing";
-          // Ensure keyboard focus when starting game with mouse
-          document.querySelector('canvas').focus();
           return false;
         }
         if (gameState === "playing") {
