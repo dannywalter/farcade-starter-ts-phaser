@@ -367,6 +367,11 @@
         jumpBufferTimer = 0,
         tagTimer = TAG_TIMER_MAX,
         previousJumpState = false; // Track jump button state for edge detection
+        
+      // Debug mode variables
+      let debugMode = false;
+      let frameRateHistory = [];
+      let frameRateUpdateTimer = 0;
 
       // Help system for platform types
       let helpTexts = {
@@ -960,6 +965,83 @@
             window.FarcadeSDK.singlePlayer.actions.gameOver({ score });
           }
         }
+        
+        // Draw debug info if debug mode is enabled
+        if (debugMode) {
+          drawDebugInfo();
+        }
+      }
+      
+      // Function to draw debug information
+      function drawDebugInfo() {
+        // Calculate frame rate every 10 frames
+        frameRateUpdateTimer++;
+        if (frameRateUpdateTimer >= 10) {
+          frameRateUpdateTimer = 0;
+          frameRateHistory.push(frameRate());
+          if (frameRateHistory.length > 10) {
+            frameRateHistory.shift();
+          }
+        }
+        
+        // Calculate average FPS over the history
+        const avgFps = frameRateHistory.length > 0 
+          ? frameRateHistory.reduce((a, b) => a + b, 0) / frameRateHistory.length 
+          : frameRate();
+          
+        // Setup for debug text
+        push();
+        fill(0, 0, 0, 180);
+        rect(10, 10, 200, 150);
+        fill(255, 255, 0);
+        textAlign(LEFT, TOP);
+        textSize(14);
+        
+        // Display FPS
+        text(`FPS: ${avgFps.toFixed(1)}`, 20, 20);
+        
+        // Display current position in level
+        const levelProgress = player.x / LEVEL_LENGTH;
+        text(`Level progress: ${(levelProgress * 100).toFixed(2)}%`, 20, 40);
+        
+        // Display current zone
+        let currentZone = "Normal";
+        if (levelProgress >= INTRO_ZONES.crumbling.start) currentZone = "Crumbling";
+        else if (levelProgress >= INTRO_ZONES.vertical.start) currentZone = "Vertical";
+        else if (levelProgress >= INTRO_ZONES.moving.start) currentZone = "Moving";
+        else if (levelProgress >= INTRO_ZONES.bouncy.start) currentZone = "Bouncy";
+        text(`Current zone: ${currentZone}`, 20, 60);
+        
+        // Player position
+        text(`Player pos: ${Math.round(player.x)}, ${Math.round(player.y)}`, 20, 80);
+        
+        // Controls help
+        text("Debug Controls:", 20, 100);
+        text("D: Toggle debug mode", 20, 120);
+        text("1-5: Teleport to zones", 20, 140);
+        
+        pop();
+        
+        // Draw zone boundaries as vertical lines on screen
+        push();
+        translate(-cameraX, -cameraY);
+        strokeWeight(3);
+        stroke(255, 255, 0, 100);
+        
+        // Draw line for each zone boundary
+        for (const zone in INTRO_ZONES) {
+          if (INTRO_ZONES[zone].start > 0) {
+            const boundaryX = LEVEL_LENGTH * INTRO_ZONES[zone].start;
+            line(boundaryX, cameraY, boundaryX, cameraY + height);
+            
+            // Add zone label
+            fill(255, 255, 0);
+            noStroke();
+            textSize(16);
+            text(zone, boundaryX + 10, cameraY + 50);
+          }
+        }
+        pop();
       }
 
       function runGame() {
@@ -2706,6 +2788,11 @@
         text("← → or A / D: Move", width / 2, moveY - 80);
         text("↑ or W: Jump", width / 2, jumpY - 80);
         text("Click / Tap to Throw Noggles", width / 2, throwY - 80);
+        
+        // Add debug instructions (smaller text, less prominent)
+        textSize(14);
+        fill("#AAAAAA");
+        text("Press D for debug mode (with zone teleport)", width / 2, moveY - 110);
 
         // Add platform type explanations
         textSize(16);
@@ -2810,10 +2897,70 @@
             jumpBufferTimer = 6;
             tryPerformJump();
           }
+          
+          // Debug mode toggle (D key)
+          if (keyCode === 192) { // 'D' key
+            debugMode = !debugMode;
+            console.log("Debug mode: " + (debugMode ? "ON" : "OFF"));
+          }
+          
+          // Zone teleport in debug mode
+          if (debugMode && keyCode >= 49 && keyCode <= 53) { // Number keys 1-5
+            const zoneIndex = keyCode - 49; // 0-4
+            teleportToZone(zoneIndex);
+          }
         }
 
         // Don't prevent default for canvas refocusing to work properly
         return true;
+      }
+      
+      // Function to teleport player to a specific zone (for debugging)
+      function teleportToZone(zoneIndex) {
+        let targetX = 0;
+        
+        // Calculate target position based on zone
+        switch(zoneIndex) {
+          case 0: // Normal platforms zone - beginning
+            targetX = LEVEL_LENGTH * 0.005;
+            break;
+          case 1: // Bouncy platforms zone
+            targetX = LEVEL_LENGTH * (INTRO_ZONES.bouncy.start + 0.01);
+            break;
+          case 2: // Moving platforms zone
+            targetX = LEVEL_LENGTH * (INTRO_ZONES.moving.start + 0.01);
+            break;
+          case 3: // Vertical platforms zone
+            targetX = LEVEL_LENGTH * (INTRO_ZONES.vertical.start + 0.01);
+            break;
+          case 4: // Crumbling platforms zone
+            targetX = LEVEL_LENGTH * (INTRO_ZONES.crumbling.start + 0.01);
+            break;
+        }
+        
+        // Find a suitable platform near the target X position
+        const nearbyPlatforms = platforms.filter(p => 
+          p.x > targetX - 200 && p.x < targetX + 1000);
+          
+        if (nearbyPlatforms.length > 0) {
+          // Sort by distance to target X
+          nearbyPlatforms.sort((a, b) => 
+            Math.abs(a.x - targetX) - Math.abs(b.x - targetX));
+            
+          // Position player on top of the nearest platform
+          const platform = nearbyPlatforms[0];
+          player.x = platform.x + platform.w / 2;
+          player.y = platform.y - player.height / 2;
+          player.velocityY = 0;
+          player.velocityX = 0;
+          
+          // Reset tag timer when teleporting
+          tagTimer = TAG_TIMER_MAX;
+          
+          console.log(`Teleported to zone ${zoneIndex + 1} at position ${Math.round(player.x)}`);
+        } else {
+          console.log(`Could not find suitable platform in zone ${zoneIndex + 1}`);
+        }
       }
 
       function mousePressed() {
