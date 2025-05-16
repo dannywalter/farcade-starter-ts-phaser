@@ -293,12 +293,12 @@
 
       // Define zones for platform introductions (as percentages of the total level length)
       const INTRO_ZONES = {
-        normal: { start: 0, end: 0.01 }, // First 10% - only normal platforms
-        bouncy: { start: 0.01, end: 0.05 }, // 10-25% - introduce bouncy
-        moving: { start: 0.05, end: 0.1 }, // 25-45% - introduce moving
-        vanishing: { start: 0.1, end: 0.15 }, // 45-70% - introduce vanishing
-        crumbling: { start: 0.2, end: 0.25 }, // 70-90% - introduce crumbling
-        mixed: { start: 0.25, end: 1.0 }, // Final 10% - mix everything
+        normal: { start: 0, end: 0.01 }, // First 1% - only normal platforms
+        bouncy: { start: 0.01, end: 0.05 }, // 1-5% - introduce bouncy
+        moving: { start: 0.05, end: 0.1 }, // 5-10% - introduce moving
+        vertical: { start: 0.1, end: 0.15 }, // 10-15% - introduce vertical moving (replacing vanishing)
+        crumbling: { start: 0.2, end: 0.25 }, // 20-25% - introduce crumbling
+        mixed: { start: 0.25, end: 1.0 }, // Final 75% - mix everything
       };
 
       const brightPalettes = {
@@ -371,7 +371,7 @@
       // Help system for platform types
       let helpTexts = {
         crumbling: { shown: false, text: "NEW! Crumbling platforms fall after you step on them!" },
-        vanishing: { shown: false, text: "NEW! Vanishing platforms appear and disappear!" },
+        vertical: { shown: false, text: "NEW! These purple platforms move up and down!" }, // New help text
         moving: { shown: false, text: "NEW! These blue platforms move left and right!" },
         bouncy: { shown: false, text: "NEW! Yellow platforms give you an extra boost!" },
       };
@@ -379,7 +379,7 @@
       // Track if each platform type has had a tutorial platform
       let tutorialShown = {
         crumbling: false,
-        vanishing: false,
+        vertical: false,  // Changed from vanishing to vertical
         moving: false,
         bouncy: false,
       };
@@ -609,7 +609,7 @@
           const availableTypes = ["normal"]; // Always include normal platforms
           if (levelProgress >= INTRO_ZONES.bouncy.start) availableTypes.push("bouncy");
           if (levelProgress >= INTRO_ZONES.moving.start) availableTypes.push("moving");
-          if (levelProgress >= INTRO_ZONES.vanishing.start) availableTypes.push("vanishing");
+          if (levelProgress >= INTRO_ZONES.vertical.start) availableTypes.push("vertical"); // Changed from vanishing
           if (levelProgress >= INTRO_ZONES.crumbling.start) availableTypes.push("crumbling");
 
           // Each zone specifically introduces and features one platform type
@@ -633,8 +633,8 @@
               tutorialShown.bouncy = true;
               platformIsTutorial = true;
             }
-          } else if (levelProgress < INTRO_ZONES.vanishing.start) {
-            // Moving platforms zone (25%-45%)
+          } else if (levelProgress < INTRO_ZONES.vertical.start) {
+            // Moving platforms zone (5%-10%)
             const typeRoll = random();
 
             if (typeRoll < 0.4) {
@@ -652,11 +652,11 @@
               platformIsTutorial = true;
             }
           } else if (levelProgress < INTRO_ZONES.crumbling.start) {
-            // Vanishing platforms zone (45%-70%)
+            // Vertical moving platforms zone (10%-15%)
             const typeRoll = random();
 
             if (typeRoll < 0.35) {
-              platformType = "vanishing";
+              platformType = "vertical";
             } else if (typeRoll < 0.55) {
               platformType = "moving";
             } else if (typeRoll < 0.7) {
@@ -665,10 +665,10 @@
               platformType = "normal";
             }
 
-            // Force tutorial platform at the beginning of the vanishing zone
-            if (!tutorialShown.vanishing && levelProgress < INTRO_ZONES.vanishing.start + 0.02) {
-              platformType = "vanishing";
-              tutorialShown.vanishing = true;
+            // Force tutorial platform at the beginning of the vertical zone
+            if (!tutorialShown.vertical && levelProgress < INTRO_ZONES.vertical.start + 0.02) {
+              platformType = "vertical";
+              tutorialShown.vertical = true;
               platformIsTutorial = true;
             }
           } else if (levelProgress < INTRO_ZONES.mixed.start) {
@@ -678,7 +678,7 @@
             if (typeRoll < 0.3) {
               platformType = "crumbling";
             } else if (typeRoll < 0.5) {
-              platformType = "vanishing";
+              platformType = "vertical";
             } else if (typeRoll < 0.7) {
               platformType = "moving";
             } else if (typeRoll < 0.85) {
@@ -707,7 +707,7 @@
               platformType = "normal";
             } else {
               // Select randomly from all special platform types
-              const specialTypes = ["bouncy", "moving", "vanishing", "crumbling"];
+              const specialTypes = ["bouncy", "moving", "vertical", "crumbling"];
               platformType = specialTypes[Math.floor(random() * specialTypes.length)];
             }
 
@@ -753,30 +753,50 @@
               }
               break;
 
-            case "vanishing":
-              platform.visibleTimer = 0;
+            case "vertical":
+              platform.startX = xPos;
+              platform.startY = newY;
 
               if (platformIsTutorial) {
-                // Tutorial vanishing platforms are more predictable with longer visible time
-                platform.cycleLength = 120; // 2 seconds cycle
-                platform.visibleRatio = 0.7; // 70% of the time visible
+                // Tutorial vertical platforms move slower and less distance
+                platform.amplitude = 50;
+                platform.speed = 0.015;
+                platform.horizontalMovement = false;
               } else {
-                // Make cycles shorter and visible time reduced as game progresses
-                const baseCycle = 120; // 2 seconds at start
-                const minCycle = 60; // 1 second at end
-                platform.cycleLength = round(lerp(baseCycle, minCycle, difficultyFactor));
+                // Increase movement range and speed as game progresses
+                const baseAmplitude = 40;
+                const maxAmplitude = 100;
+                platform.amplitude = lerp(baseAmplitude, maxAmplitude, difficultyFactor);
 
-                // Decrease visibility ratio from 60% to 40% as game progresses
-                platform.visibleRatio = lerp(0.6, 0.4, difficultyFactor);
+                const baseSpeed = 0.01;
+                const maxSpeed = 0.03;
+                platform.speed = lerp(baseSpeed, maxSpeed, difficultyFactor);
+
+                // Add horizontal movement to later zone platforms for more challenge
+                if (difficultyFactor > 0.6 && random() < 0.4) {
+                  platform.horizontalMovement = true;
+                  platform.horizontalPhase = random(TWO_PI);
+                  platform.horizontalSpeed = platform.speed * random(0.6, 1.0);
+
+                  // Horizontal movement amplitude is smaller than vertical
+                  const minHorizAmplitude = 15;
+                  const maxHorizAmplitude = 30;
+                  platform.horizontalAmplitude = lerp(minHorizAmplitude, maxHorizAmplitude, (difficultyFactor - 0.6) / 0.4);
+
+                  // Use a slightly different color for combined movement platforms
+                  platform.color = color(180, 120, 230); // Purplish
+                } else {
+                  platform.horizontalMovement = false;
+                  platform.color = color(200, 100, 255); // Standard purple
+                }
               }
 
-              platform.phase = random(TWO_PI); // Random starting phase
-              platform.isVisible = true;
+              platform.phase = random(TWO_PI);
 
               // Set special color for tutorial platform
               if (platformIsTutorial) {
-                platform.color = color(220, 220, 255); // More distinctive color
-                platform.phase = 0; // Start in visible state
+                platform.color = color(220, 150, 255); // Brighter purple
+                platform.horizontalMovement = false;
               }
               break;
 
@@ -1220,7 +1240,7 @@
                 case "moving":
                   particleColor = color(80, 180, 255, 100);
                   break;
-                case "vanishing":
+                case "_deprecated_vanishing_": // This case should never be hit
                   particleColor = color(220, 220, 255, 100);
                   break;
                 case "crumbling":
@@ -1255,7 +1275,7 @@
                   size: random(1.5, 3) * difficultyIntensity,
                   life: 15 * difficultyIntensity,
                   maxLife: 15 * difficultyIntensity,
-                  type: p.type === "vanishing" ? "sparkle" : "default",
+                  type: p.type === "vertical" ? "sparkle" : "default",
                 });
               } else {
                 // Early zones: Subtle particles
@@ -1416,77 +1436,97 @@
               }
               break;
 
-            case "vanishing":
-              // Only draw if visible in the cycle
-              p.visibleTimer = (p.visibleTimer + 1) % p.cycleLength;
-              const visibilityPhase = (p.visibleTimer / p.cycleLength + p.phase / TWO_PI) % 1;
+            case "vertical":
+              // Calculate vertical position based on sine wave
+              const vertOffset = sin(frameCount * p.speed + p.phase) * p.amplitude;
+              p.y = p.startY + vertOffset;
 
-              // Use platform-specific visibility ratio (defaults to 0.6 if not set)
-              const visibleRatio = p.visibleRatio || 0.6;
-              p.isVisible = visibilityPhase < visibleRatio;
+              // Handle horizontal movement if enabled
+              if (p.horizontalMovement) {
+                const horizOffset = sin(frameCount * p.horizontalSpeed + p.horizontalPhase) * p.horizontalAmplitude;
+                p.x = p.startX + horizOffset;
 
-              if (p.isVisible) {
-                // Calculate opacity based on phase for smooth transitions
-                let opacity = 1;
-                const fadeInOut = 0.1; // Fade transition time (10% of cycle)
-                const platformVisibleRatio = p.visibleRatio || 0.6;
+                // Add horizontal trail effect
+                if (frameCount % 10 === 0 && abs(horizOffset) > p.horizontalAmplitude * 0.6) {
+                  const trailDirX = horizOffset > 0 ? -1 : 1;
 
-                if (visibilityPhase < fadeInOut) {
-                  // Fade in
-                  opacity = map(visibilityPhase, 0, fadeInOut, 0, 1);
-                } else if (visibilityPhase > platformVisibleRatio - fadeInOut) {
-                  // Fade out
-                  opacity = map(visibilityPhase, platformVisibleRatio - fadeInOut, platformVisibleRatio, 1, 0);
-                }
-
-                // Apply the opacity
-                const c = color(p.color);
-                fill(red(c), green(c), blue(c), 255 * opacity);
-                stroke(0, 0, 0, 30 * opacity);
-                strokeWeight(2);
-                rect(p.x, p.y, p.w, p.h);
-
-                // Add shimmer particles when fading
-                // Use the same constants we already defined above
-                if (
-                  random() < 0.3 &&
-                  (visibilityPhase < fadeInOut || visibilityPhase > platformVisibleRatio - fadeInOut)
-                ) {
-                  particles.push({
-                    x: p.x + random(p.w),
-                    y: p.y + random(p.h),
-                    vx: random(-0.5, 0.5),
-                    vy: random(-1, -0.5),
-                    color: color(255, 255, 255, 150),
-                    size: random(3, 8),
-                    life: 20,
-                    maxLife: 20,
-                    type: "sparkle",
-                  });
-
-                  // Occasionally add a text hint if player is nearby
-                  // Enhanced hint generation for tutorial and nearby platforms
-                  const isNearPlayer = dist(player.x, player.y, p.x + p.w / 2, p.y) < 250;
-
-                  // Show more hints for tutorial platforms or when player is nearby
-                  if ((p.isTutorial && frameCount % 90 < 30) || (isNearPlayer && random() < 0.05)) {
-                    // Create more attention-grabbing text hint
+                  // Add horizontal trail particles
+                  for (let i = 0; i < 2; i++) {
                     particles.push({
-                      x: p.x + p.w / 2,
-                      y: p.y - 15,
-                      vx: 0,
-                      vy: -1,
-                      color: p.isTutorial ? color(255, 255, 100) : color(255, 255, 255),
-                      size: 1,
-                      life: 40,
-                      maxLife: 40,
-                      type: "text",
-                      text: visibilityPhase < fadeInOut ? "Appearing!" : "Vanishing!",
-                      textSize: p.isTutorial ? 14 : 10,
+                      x: p.x + (trailDirX < 0 ? p.w : 0),
+                      y: p.y + random(p.h),
+                      vx: trailDirX * random(0.5, 1),
+                      vy: random(-0.3, 0.3),
+                      color: color(180, 120, 230, 100),
+                      size: random(2, 5),
+                      life: 15,
+                      maxLife: 15,
+                      type: "sparkle",
                     });
                   }
                 }
               }
+
+              // Add vertical trail effect
+              if (frameCount % 10 === 0 && abs(vertOffset) > p.amplitude * 0.6) {
+                const trailDirY = vertOffset > 0 ? -1 : 1;
+
+                // Add vertical trail particles
+                for (let i = 0; i < 2; i++) {
+                  particles.push({
+                    x: p.x + random(p.w),
+                    y: p.y + (trailDirY < 0 ? p.h : 0),
+                    vx: random(-0.3, 0.3),
+                    vy: trailDirY * random(0.5, 1),
+                    color: color(200, 150, 255, 100),
+                    size: random(2, 5),
+                    life: 15,
+                    maxLife: 15,
+                    type: "sparkle",
+                  });
+                }
+
+                // Add vertical movement indicators
+                if (abs(vertOffset) > p.amplitude * 0.9 && random() < 0.2) {
+                  particles.push({
+                    x: p.x + p.w / 2,
+                    y: p.y + (trailDirY < 0 ? p.h + 15 : -15),
+                    vx: 0,
+                    vy: trailDirY * -0.5,
+                    color: color(220, 180, 255),
+                    size: 1,
+                    life: 20,
+                    maxLife: 20,
+                    type: "text",
+                    text: trailDirY < 0 ? "↓" : "↑",
+                    textSize: 12,
+                  });
+                }
+              }
+
+              // Draw platform with visual indicators
+              fill(p.color);
+              stroke(0, 0, 0, 30);
+              strokeWeight(2);
+
+              // Add indication of movement with special pattern
+              if (p.horizontalMovement) {
+                // Create a gradient pattern to indicate horizontal movement
+                const patternWidth = 4;
+                for (let i = 0; i < p.w; i += patternWidth * 2) {
+                  fill(color(180, 120, 230));
+                  rect(p.x + i, p.y, patternWidth, p.h);
+                }
+              } else {
+                // Create a gradient pattern to indicate vertical movement
+                const patternHeight = 4;
+                for (let i = 0; i < p.h; i += patternHeight * 2) {
+                  fill(color(220, 150, 255));
+                  rect(p.x, p.y + i, p.w, patternHeight);
+                }
+              }
+
+              rect(p.x, p.y, p.w, p.h);
               break;
 
             case "moving":
@@ -2124,10 +2164,8 @@
         player.y += player.velocityY;
         player.isOnGround = false;
         platforms.forEach((p) => {
-          // For vanishing platforms, only collide if they're visible
-          if (p.type === "vanishing" && !p.isVisible) {
-            return;
-          }
+          // All platform types are always collidable now
+          // (vertical platforms are always visible, unlike the old vanishing platforms)
 
           if (isColliding(player, p)) {
             const prevBot = player.y - player.velocityY + player.height / 2;
@@ -2326,6 +2364,23 @@
                   });
                   break;
 
+                case "vertical":
+                  // For vertical moving platforms, apply the vertical movement to the player
+                  // Store platform's current position for next frame's velocity calculation
+                  if (p.prevY !== undefined) {
+                    const platformVelocityY = p.y - p.prevY;
+                    
+                    // Apply platform's vertical momentum to the player when standing on it
+                    // This makes the player move up and down with the platform
+                    player.velocityY = platformVelocityY;
+                  }
+                  p.prevY = p.y;
+                  
+                  // Regular landing behavior
+                  player.isOnGround = true;
+                  coyoteTimer = 6;
+                  break;
+                  
                 default:
                   // Regular platform landing (normal and moving)
                   player.velocityY = 0;
@@ -2481,7 +2536,7 @@
         gradient.addColorStop(0, "rgb(150, 255, 150)"); // Green for easy beginning
         gradient.addColorStop(INTRO_ZONES.bouncy.start, "rgb(220, 255, 100)"); // Yellow-green for bouncy
         gradient.addColorStop(INTRO_ZONES.moving.start, "rgb(100, 200, 255)"); // Blue for moving
-        gradient.addColorStop(INTRO_ZONES.vanishing.start, "rgb(200, 180, 255)"); // Purple for vanishing
+        gradient.addColorStop(INTRO_ZONES.vertical.start, "rgb(200, 180, 255)"); // Purple for vertical
         gradient.addColorStop(INTRO_ZONES.crumbling.start, "rgb(255, 150, 100)"); // Orange for crumbling
         gradient.addColorStop(INTRO_ZONES.mixed.start, "rgb(255, 80, 80)"); // Red for final zone
 
@@ -2509,8 +2564,8 @@
               case "moving":
                 fill(80, 180, 255);
                 break;
-              case "vanishing":
-                fill(220, 220, 255);
+              case "vertical":
+                fill(200, 100, 255);
                 break;
               case "crumbling":
                 fill(220, 170, 120);
@@ -2547,10 +2602,8 @@
 
         noStroke();
         textSize(10);
-        textAlign(CENTER, CENTER);
-
-        // Draw platform type indicators
-        const platformTypes = ["normal", "bouncy", "moving", "vanishing", "crumbling"];
+        textAlign(CENTER, CENTER);          // Draw platform type indicators
+          const platformTypes = ["normal", "bouncy", "moving", "vertical", "crumbling"];
         platformTypes.forEach((type, i) => {
           const iconX = iconStartX + i * iconSpacing * 2;
           const iconY = 65;
@@ -2561,12 +2614,12 @@
             (levelSection === 0 && (type === "normal" || type === "bouncy")) ||
             (levelSection === 1 && (type === "normal" || type === "bouncy" || type === "moving")) ||
             (levelSection === 2 &&
-              (type === "normal" || type === "bouncy" || type === "moving" || type === "vanishing")) ||
+              (type === "normal" || type === "bouncy" || type === "moving" || type === "vertical")) ||
             (levelSection === 3 &&
               (type === "normal" ||
                 type === "bouncy" ||
                 type === "moving" ||
-                type === "vanishing" ||
+                type === "vertical" ||
                 type === "crumbling")) ||
             levelSection === 4; // All platforms are common in the final section
 
@@ -2588,13 +2641,13 @@
                 fill(80, 180, 255); // Match the updated blue color
                 rect(iconX, iconY, iconSize, iconSize / 3);
                 fill(255);
-                text("↔", iconX, iconY + 6); // Change to horizontal arrow
+                text("↔", iconX, iconY + 6); // Horizontal arrow
                 break;
-              case "vanishing":
-                // Pulsing effect
-                const pulse = sin(frameCount * 0.1) * 0.5 + 0.5;
-                fill(255, 255, 255, 100 + pulse * 155);
+              case "vertical":
+                fill(200, 100, 255); // Purple color
                 rect(iconX, iconY, iconSize, iconSize / 3);
+                fill(255);
+                text("↕", iconX, iconY + 6); // Vertical arrow
                 break;
               case "crumbling":
                 fill(200, 150, 100);
@@ -2681,13 +2734,11 @@
         fill("#FFFFFF");
         text("Moving platforms - slide left & right", platformInfoX + 40, height / 2 + 25);
 
-        // Vanishing platforms
-        drawingContext.globalAlpha = 0.6;
-        fill(220, 220, 255);
+        // Vertical moving platforms
+        fill(200, 100, 255);
         rect(platformInfoX, height / 2 + 45, 30, 10);
-        drawingContext.globalAlpha = 1.0;
         fill("#FFFFFF");
-        text("Vanishing platforms - appear & disappear", platformInfoX + 40, height / 2 + 50);
+        text("Vertical platforms - move up & down", platformInfoX + 40, height / 2 + 50);
 
         // Crumbling platforms
         fill(200, 150, 100);
