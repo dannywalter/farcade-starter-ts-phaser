@@ -739,6 +739,8 @@
             case "moving":
               platform.startX = xPos;
               platform.startY = newY;
+              // Initialize prevX to current position to avoid first frame jumps
+              platform.prevX = xPos;
 
               if (platformIsTutorial) {
                 // Tutorial moving platforms move slower and less distance
@@ -1520,6 +1522,13 @@
               break;
 
             case "moving":
+              // Store previous position before updating
+              if (p.prevX === undefined) {
+                p.prevX = p.x;
+              } else {
+                p.prevX = p.x;
+              }
+              
               // Calculate horizontal position based on sine wave
               const horizOffset = sin(frameCount * p.speed + p.phase) * p.amplitude;
               p.x = p.startX + horizOffset;
@@ -2122,6 +2131,7 @@
 
       function updatePlayer() {
   // Store the previous platform the player was on
+  // This helps us detect when we've just landed on a new platform
   const previousPlatform = player.platformBelow;
   player.platformBelow = null;
   
@@ -2306,6 +2316,11 @@
         // Hitting platform from below or side
         if (player.velocityY < 0) player.velocityY = 0;
         player.y = p.y + p.h + player.height / 2;
+        
+        // Ensure we don't stick to the bottom of the platform
+        if (player.platformBelow === p) {
+          player.platformBelow = null;
+        }
       }
     }
   });
@@ -2317,7 +2332,11 @@
     
     // Handle horizontal movement for moving platforms
     if (p.type === "moving") {
-      if (p.prevX !== undefined) {
+      // If this is the first frame we've landed on this platform,
+      // just initialize the prevX value without moving the player
+      if (p.prevX === undefined || player.platformBelow !== previousPlatform) {
+        p.prevX = p.x;
+      } else {
         const platformDeltaX = p.x - p.prevX;
         // Apply platform's horizontal movement directly to player position
         player.x += platformDeltaX;
