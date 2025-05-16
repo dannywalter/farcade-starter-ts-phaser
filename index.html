@@ -347,7 +347,7 @@
       // — STATE —
       let cloudImg,
         clouds = [];
-      let joystick = { x: 0, y: 0, outer: 60, inner: 30, activeRadius: 180 }; // Increased active radius for more forgiving control
+      let joystick = { x: 0, y: 0, outer: 60, inner: 30, activeRadius: 150 };
       let jumpBtn = { x: 0, y: 0, r: 80 };
       let cameraX = 0,
         cameraY = 0,
@@ -1888,23 +1888,10 @@
         for (const t of touches) {
           if (dist(t.x, t.y, joystick.x, joystick.y) < joystick.activeRadius) {
             const dx = t.x - joystick.x;
-            // Smaller dead zone for more responsive movement
-            const deadZone = joystick.inner / 3;
-            
-            if (abs(dx) > deadZone) {
-              // Only register directional movement outside of dead zone
-              inputs.moveLeft = inputs.moveLeft || dx < -deadZone;
-              inputs.moveRight = inputs.moveRight || dx > deadZone;
-              // Calculate analog value with improved formula for better control
-              // This ensures even small movements have a reasonable minimum speed
-              const analogValue = constrain(map(abs(dx), deadZone, joystick.outer, 0.3, 1.0), 0.3, 1.0);
-              inputs.moveStrength = analogValue;
-              // Store the raw offset for analog movement direction
-              inputs.joystickDx = dx;
-            } else {
-              // Within dead zone, use minimal movement
-              inputs.moveStrength = 0;
-            }
+            inputs.moveLeft = inputs.moveLeft || dx < -joystick.inner / 2;
+            inputs.moveRight = inputs.moveRight || dx > joystick.inner / 2;
+            // Store analog value for variable speed
+            inputs.moveStrength = constrain(abs(dx) / (joystick.outer - joystick.inner), 0, 1);
           }
 
           // Check for touch-based jump button presses
@@ -1997,21 +1984,12 @@
       function applyMovementPhysics(inputs) {
         // Target velocity based on input
         let targetVelocityX = 0;
-        
-        if (inputs.joystickDx !== undefined && inputs.moveStrength > 0) {
-          // For touch joystick with analog control:
-          // Improved speed scaling with a minimum baseline speed
-          const direction = inputs.joystickDx > 0 ? 1 : -1;
-          const minSpeed = 1.5; // Minimum speed when moving
-          const maxSpeed = 6.0; // Maximum speed at full joystick
-          
-          // Map the strength to a speed range with a minimum threshold
-          // This makes small movements still feel responsive
-          targetVelocityX = direction * map(inputs.moveStrength, 0, 1, minSpeed, maxSpeed);
-        } else {
-          // For keyboard controls (binary input):
-          if (inputs.moveLeft) targetVelocityX = -5;
-          if (inputs.moveRight) targetVelocityX = 5;
+        if (inputs.moveLeft) targetVelocityX = -5;
+        if (inputs.moveRight) targetVelocityX = 5;
+
+        // Apply analog control if using touch
+        if (inputs.moveStrength !== undefined) {
+          targetVelocityX *= inputs.moveStrength;
         }
 
         // Apply acceleration and deceleration for smoother movement
@@ -2035,12 +2013,7 @@
       }
 
       function handlePlayerInput(inputs) {
-        // This function appears to duplicate some movement logic
-        // We'll modify it to be consistent with our new analog joystick approach
-        
         player.velocityX = 0;
-        
-        // Handle keyboard movement first
         if (inputs.moveLeft) {
           player.velocityX = -5;
           player.animation.facingDirection = -1;
@@ -2049,26 +2022,11 @@
           player.velocityX = 5;
           player.animation.facingDirection = 1;
         }
-        
-        // Handle joystick with analog control
-        // (Note: Most of this is now handled in collectInputs and applyMovementPhysics)
         for (const t of touches) {
           if (dist(t.x, t.y, joystick.x, joystick.y) < joystick.activeRadius) {
-            const dx = t.x - joystick.x;
-            const deadZone = joystick.inner / 3; // Use same smaller dead zone as in collectInputs
-            
-            if (abs(dx) > deadZone) {
-              // Calculate analog strength with better minimum value
-              const analogValue = constrain(map(abs(dx), deadZone, joystick.outer, 0.3, 1.0), 0.3, 1.0);
-              // Apply analog movement direction and strength
-              const minSpeed = 1.5; // Minimum speed when moving
-              const maxSpeed = 5.0; // Maximum speed at full joystick
-              player.velocityX = (dx > 0 ? 1 : -1) * map(analogValue, 0, 1, minSpeed, maxSpeed);
-              player.animation.facingDirection = dx > 0 ? 1 : -1;
-            } else {
-              // Within dead zone, no movement
-              player.velocityX = 0;
-            }
+            const dx = constrain(t.x - joystick.x, -(joystick.outer - joystick.inner), joystick.outer - joystick.inner);
+            player.velocityX = dx > 0 ? 5 : -5;
+            player.animation.facingDirection = dx > 0 ? 1 : -1;
             break;
           }
         }
@@ -2451,70 +2409,21 @@
       }
 
       function drawUI() {
-        // Draw joystick background and active area
+        // Draw joystick and jump controls
         noFill();
         stroke(0, 0, 100, 50);
         strokeWeight(2);
-        // Draw outer circle (max range)
         circle(joystick.x, joystick.y, joystick.outer * 2);
-        
-        // Draw dead zone as a subtle inner circle
-        stroke(0, 0, 100, 30);
-        strokeWeight(1);
-        circle(joystick.x, joystick.y, joystick.inner);
-        
-        // Find active touch for joystick
-        let joystickActive = false;
         let kx = joystick.x;
-        let ky = joystick.y;
         for (const t of touches) {
           if (dist(t.x, t.y, joystick.x, joystick.y) < joystick.activeRadius) {
-            joystickActive = true;
-            // Calculate stick position within limits
-            const dx = t.x - joystick.x;
-            const dy = t.y - joystick.y;
-            const angle = atan2(dy, dx);
-            const magnitude = min(dist(t.x, t.y, joystick.x, joystick.y), joystick.outer);
-            
-            kx = joystick.x + cos(angle) * magnitude;
-            ky = joystick.y + sin(angle) * magnitude;
-            
-            // Highlight dead zone when active but within dead zone
-            if (magnitude <= joystick.inner/3) {
-              noFill();
-              stroke(0, 200, 255, 100);
-              strokeWeight(2);
-              circle(joystick.x, joystick.y, joystick.inner/1.5);
-            }
-            
-            // Draw max speed indicator when near the edge
-            if (magnitude > joystick.outer * 0.9) {
-              fill(100, 255, 100, 70);
-              noStroke();
-              circle(kx, ky, 24);
-              fill(255);
-              textSize(10);
-              text("MAX", kx, ky);
-            }
+            kx += constrain(t.x - joystick.x, -(joystick.outer - joystick.inner), joystick.outer - joystick.inner);
             break;
           }
         }
-        
-        // Draw the joystick handle
         noStroke();
-        if (joystickActive) {
-          // When active, draw with a glow effect
-          drawingContext.shadowBlur = 10;
-          drawingContext.shadowColor = "rgba(100, 200, 255, 0.5)";
-          fill(100, 200, 255, 80);
-        } else {
-          // Default state
-          fill(0, 0, 100, 80);
-        }
-        circle(kx, ky, joystick.inner * 1.5);
-        drawingContext.shadowBlur = 0;
-        
-        // Draw jump button
+        fill(0, 0, 100, 80);
+        circle(kx, joystick.y, joystick.inner * 2);
         fill(0, 0, 100, 20);
         circle(jumpBtn.x, jumpBtn.y, jumpBtn.r * 2);
         fill(0, 0, 100, 80);
