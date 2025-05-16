@@ -721,8 +721,8 @@
           switch (platformType) {
             case "crumbling":
               // Make platforms crumble faster as game progresses
-              const baseMax = platformIsTutorial ? 40 : 30; // Tutorial platforms last a bit longer
-              const minMax = 15; // Minimum frames before collapse at max difficulty
+              const baseMax = platformIsTutorial ? 80 : 60; // Tutorial platforms last a bit longer
+              const minMax = 30; // Minimum frames before collapse at max difficulty
               platform.crumbleTimer = -1; // -1 means not triggered yet
               platform.crumbleMax = round(lerp(baseMax, minMax, difficultyFactor));
               platform.originalColor = platform.color;
