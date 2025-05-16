@@ -580,6 +580,7 @@
           throwSquash: 0,
           spriteSheet: nounSpriteSheet,
           animation: { currentSet: "idle", facingDirection: 1, frameIndex: 0, tick: 0 },
+          platformBelow: null, // Add tracking for the current platform the player is on
         };
 
         platforms = [
@@ -2213,274 +2214,235 @@
       }
 
       function updatePlayer() {
-        player.x += player.velocityX;
-        platforms.forEach((p) => {
-          if (isColliding(player, p)) {
-            // Handle moving platforms - player "rides" the platform horizontally
-            if (p.type === "moving" && player.isOnGround && player.y <= p.y) {
-              // Allow the player to be pushed by the moving platform
-              let platformVelocityX = 0;
-
-              // Calculate the platform's current velocity based on its position change
-              if (p.prevX !== undefined) {
-                platformVelocityX = p.x - p.prevX;
-
-                // Apply platform momentum to the player (reduced effect)
-                player.velocityX += platformVelocityX * 0.8;
-              }
-
-              // Store platform's current position for next frame's velocity calculation
-              p.prevX = p.x;
-            } else {
-              // Normal collision handling for non-moving platforms or side collisions
-              if (player.velocityX > 0) player.x = p.x - player.width / 2;
-              else player.x = p.x + p.w + player.width / 2;
-              player.velocityX = 0;
-            }
-          }
-        });
-        if (!player.isOnGround) coyoteTimer = max(coyoteTimer - 1, 0);
-        if (jumpBufferTimer > 0) jumpBufferTimer--;
-        if (player.isOnGround && jumpBufferTimer > 0) tryPerformJump();
-        player.velocityY += 0.5;
-        player.y += player.velocityY;
-        player.isOnGround = false;
-        platforms.forEach((p) => {
-          // All platform types are always collidable now
-          // (vertical platforms are always visible, unlike the old vanishing platforms)
-
-          if (isColliding(player, p)) {
-            const prevBot = player.y - player.velocityY + player.height / 2;
-            if (player.velocityY > 0 && prevBot <= p.y + 1) {
-              // Landing on top of platform
-              player.y = p.y - player.height / 2;
-
-              // Check if this is the first encounter with this platform type
-              if (p.type !== "normal" && !helpTexts[p.type].shown) {
-                // Show help text for this platform type
-                helpTexts[p.type].shown = true;
-
-                // Create a more prominent help text - as a message at the top
+  // Store the previous platform the player was on
+  const previousPlatform = player.platformBelow;
+  player.platformBelow = null;
+  
+  // Apply normal horizontal movement
+  player.x += player.velocityX;
+  
+  // First handle horizontal collisions
+  platforms.forEach((p) => {
+    if (isColliding(player, p)) {
+      // Don't resolve horizontal collision for moving platforms when standing on top
+      if ((p.type === "moving" || p.type === "vertical") && 
+          player.isOnGround && 
+          player.y <= p.y + 1) {
+        // We'll handle this below with platform movement
+      } else {
+        // Normal horizontal collision
+        if (player.velocityX > 0) {
+          player.x = p.x - player.width / 2;
+        } else {
+          player.x = p.x + p.w + player.width / 2;
+        }
+        player.velocityX = 0;
+      }
+    }
+  });
+  
+  // Update coyote time and jump buffer
+  if (!player.isOnGround) coyoteTimer = max(coyoteTimer - 1, 0);
+  if (jumpBufferTimer > 0) jumpBufferTimer--;
+  if (player.isOnGround && jumpBufferTimer > 0) tryPerformJump();
+  
+  // Apply gravity and vertical movement
+  player.velocityY += 0.5;
+  player.y += player.velocityY;
+  player.isOnGround = false;
+  
+  // Handle platform collisions and special platform behaviors
+  platforms.forEach((p) => {
+    if (isColliding(player, p)) {
+      const prevBot = player.y - player.velocityY + player.height / 2;
+      
+      if (player.velocityY > 0 && prevBot <= p.y + 1) {
+        // Landing on top of platform
+        player.y = p.y - player.height / 2;
+        player.platformBelow = p; // Track which platform player is on
+        
+        // Handle platform-specific landing behaviors
+        switch (p.type) {
+          case "crumbling":
+            // Existing crumbling platform code...
+            if (p.crumbleTimer === -1) {
+              p.crumbleTimer = p.crumbleMax;
+              
+              // Create crumbling particles...
+              for (let i = 0; i < 5; i++) {
                 particles.push({
-                  x: width / 2 + cameraX,
-                  y: 80 + cameraY,
-                  vx: 0,
-                  vy: 0,
-                  color: color(255, 255, 200),
-                  size: 1,
-                  life: 240, // 4 seconds at 60fps
-                  maxLife: 240,
-                  type: "text",
-                  text: helpTexts[p.type].text,
-                  textSize: 20,
+                  x: player.x + random(-10, 10),
+                  y: p.y,
+                  vx: random(-1, 1),
+                  vy: random(-1, -0.2),
+                  color: color(p.color),
+                  size: random(3, 6),
+                  life: 15,
+                  maxLife: 15,
+                  type: "debris",
+                  angle: random(TWO_PI),
+                  rotationSpeed: random(-0.1, 0.1),
                 });
+              }
+              
+              // Add "Cracking!" text effect
+              particles.push({
+                x: player.x,
+                y: player.y - 25,
+                vx: 0,
+                vy: -1,
+                color: color(255, 100, 50),
+                size: 2,
+                life: 30,
+                maxLife: 30,
+                type: "text",
+                text: "Cracking!",
+                textSize: 12,
+              });
+            }
+            break;
 
-                // Add attention-grabbing effect
-                for (let i = 0; i < 12; i++) {
-                  particles.push({
-                    x: width / 2 + cameraX + random(-100, 100),
-                    y: 80 + cameraY + random(-10, 10),
-                    vx: random(-1, 1),
-                    vy: random(-0.5, -1.5),
-                    color: color(255, 255, 100),
-                    size: random(3, 6),
-                    life: random(30, 60),
-                    maxLife: 60,
-                    type: "sparkle",
-                  });
-                }
+          case "bouncy":
+            // Compress spring and apply bounce
+            p.springCompression = 5;
+            player.velocityY = -15 * p.bounceFactor; // Apply moderately higher jump
+
+            // In higher difficulty zones, add some horizontal momentum too
+            if (p.zoneDifficulty > 0.7 && !p.isTutorial) {
+              const horizontalBoostFactor = map(p.zoneDifficulty, 0.7, 1.0, 0.3, 0.8);
+
+              // Determine direction based on player's position on the platform
+              const playerPosOnPlat = (player.x - p.x) / p.w;
+
+              // Higher boost when near edges, minimal in center
+              const edgeFactor = abs(playerPosOnPlat - 0.5) * 2; // 0 at center, 1 at edges
+              const boostMagnitude = 4 * horizontalBoostFactor * edgeFactor;
+
+              // Apply horizontal boost away from center
+              if (playerPosOnPlat < 0.5) {
+                // Left side - boost left
+                player.velocityX = -boostMagnitude;
+              } else {
+                // Right side - boost right
+                player.velocityX = boostMagnitude;
               }
 
-              // Special effects for tutorial platforms when stepped on
-              if (p.isTutorial) {
-                // Create a circular wave effect
-                const waveCount = 8;
-                for (let i = 0; i < waveCount; i++) {
-                  const angle = (i / waveCount) * TWO_PI;
-                  particles.push({
-                    x: p.x + p.w / 2 + cos(angle) * 20,
-                    y: p.y + sin(angle) * 10,
-                    vx: cos(angle) * 2,
-                    vy: sin(angle) * 1.5 - 1,
-                    color: color(255, 255, 180, 150),
-                    size: random(5, 8),
-                    life: 40,
-                    maxLife: 40,
-                    type: "sparkle",
-                  });
-                }
-
-                // Add "Tutorial" text that rises upward
+              // Add side-boost indicator for advanced zone bouncy platforms
+              if (edgeFactor > 0.6) {
+                const boostDirection = playerPosOnPlat < 0.5 ? "←" : "→";
                 particles.push({
-                  x: p.x + p.w / 2,
-                  y: p.y - 25,
-                  vx: 0,
-                  vy: -1.2,
-                  color: color(255, 255, 100),
-                  size: 1,
-                  life: 80,
-                  maxLife: 80,
+                  x: player.x,
+                  y: player.y - 35,
+                  vx: player.velocityX * 0.1,
+                  vy: -1.5,
+                  color: color(255, 220, 100),
+                  size: 2,
+                  life: 30,
+                  maxLife: 30,
                   type: "text",
-                  text: "Tutorial Platform!",
+                  text: boostDirection + " BOOST!",
                   textSize: 14,
                 });
               }
-
-              // Platform-specific behaviors when landing
-              switch (p.type) {
-                case "crumbling":
-                  // Start crumble timer if not already started
-                  if (p.crumbleTimer === -1) {
-                    p.crumbleTimer = p.crumbleMax;
-
-                    // Add crumble particles when landing
-                    for (let i = 0; i < 5; i++) {
-                      particles.push({
-                        x: player.x + random(-10, 10),
-                        y: p.y,
-                        vx: random(-1, 1),
-                        vy: random(-1, -0.2),
-                        color: color(p.color),
-                        size: random(3, 6),
-                        life: 15,
-                        maxLife: 15,
-                        type: "debris",
-                        angle: random(TWO_PI),
-                        rotationSpeed: random(-0.1, 0.1),
-                      });
-                    }
-
-                    // Add "Cracking!" text effect
-                    particles.push({
-                      x: player.x,
-                      y: player.y - 25,
-                      vx: 0,
-                      vy: -1,
-                      color: color(255, 100, 50),
-                      size: 2,
-                      life: 30,
-                      maxLife: 30,
-                      type: "text",
-                      text: "Cracking!",
-                      textSize: 12,
-                    });
-                  }
-                  player.velocityY = 0;
-                  player.isOnGround = true;
-                  coyoteTimer = 6;
-                  break;
-
-                case "bouncy":
-                  // Compress spring and apply bounce
-                  p.springCompression = 5;
-                  player.velocityY = -15 * p.bounceFactor; // Apply moderately higher jump
-
-                  // In higher difficulty zones, add some horizontal momentum too
-                  if (p.zoneDifficulty > 0.7 && !p.isTutorial) {
-                    const horizontalBoostFactor = map(p.zoneDifficulty, 0.7, 1.0, 0.3, 0.8);
-
-                    // Determine direction based on player's position on the platform
-                    const playerPosOnPlat = (player.x - p.x) / p.w;
-
-                    // Higher boost when near edges, minimal in center
-                    const edgeFactor = abs(playerPosOnPlat - 0.5) * 2; // 0 at center, 1 at edges
-                    const boostMagnitude = 4 * horizontalBoostFactor * edgeFactor;
-
-                    // Apply horizontal boost away from center
-                    if (playerPosOnPlat < 0.5) {
-                      // Left side - boost left
-                      player.velocityX = -boostMagnitude;
-                    } else {
-                      // Right side - boost right
-                      player.velocityX = boostMagnitude;
-                    }
-
-                    // Add side-boost indicator for advanced zone bouncy platforms
-                    if (edgeFactor > 0.6) {
-                      const boostDirection = playerPosOnPlat < 0.5 ? "←" : "→";
-                      particles.push({
-                        x: player.x,
-                        y: player.y - 35,
-                        vx: player.velocityX * 0.1,
-                        vy: -1.5,
-                        color: color(255, 220, 100),
-                        size: 2,
-                        life: 30,
-                        maxLife: 30,
-                        type: "text",
-                        text: boostDirection + " BOOST!",
-                        textSize: 14,
-                      });
-                    }
-                  }
-
-                  // Add bounce particles
-                  for (let i = 0; i < 12; i++) {
-                    const angle = random(-PI / 4, (-3 * PI) / 4);
-                    particles.push({
-                      x: player.x + random(-10, 10),
-                      y: player.y + player.height / 2 - 5,
-                      vx: cos(angle) * random(1, 3),
-                      vy: sin(angle) * random(1, 3),
-                      color: color(255, 255, 100),
-                      size: random(3, 8),
-                      life: 25,
-                      maxLife: 25,
-                      type: "sparkle",
-                    });
-                  }
-
-                  // Add bounce text effect - bigger and more noticeable
-                  particles.push({
-                    x: player.x,
-                    y: player.y - 25,
-                    vx: 0,
-                    vy: -2,
-                    color: color(255, 220, 0),
-                    size: 2,
-                    life: 40,
-                    maxLife: 40,
-                    type: "text",
-                    text: "BOING!",
-                    textSize: 16,
-                  });
-                  break;
-
-                case "vertical":
-                  // For vertical moving platforms, apply the vertical movement to the player
-                  // Store platform's current position for next frame's velocity calculation
-                  if (p.prevY !== undefined) {
-                    const platformVelocityY = p.y - p.prevY;
-                    
-                    // Apply platform's vertical momentum to the player when standing on it
-                    // This makes the player move up and down with the platform
-                    player.velocityY = platformVelocityY;
-                  }
-                  p.prevY = p.y;
-                  
-                  // Regular landing behavior
-                  player.isOnGround = true;
-                  coyoteTimer = 6;
-                  break;
-                  
-                default:
-                  // Regular platform landing (normal and moving)
-                  player.velocityY = 0;
-                  player.isOnGround = true;
-                  coyoteTimer = 6;
-
-                  // Reset jump squash on landing for visual feedback
-                  if (player.jumpSquash < 1) player.jumpSquash = 1;
-              }
-            } else {
-              // Hitting platform from below/side
-              if (player.velocityY < 0) player.velocityY = 0;
-              player.y = p.y + p.h + player.height / 2;
             }
-          }
-        });
-        player.x = constrain(player.x, player.width / 2, levelWidth - player.width / 2);
+
+            // Add bounce particles
+            for (let i = 0; i < 12; i++) {
+              const angle = random(-PI / 4, (-3 * PI) / 4);
+              particles.push({
+                x: player.x + random(-10, 10),
+                y: player.y + player.height / 2 - 5,
+                vx: cos(angle) * random(1, 3),
+                vy: sin(angle) * random(1, 3),
+                color: color(255, 255, 100),
+                size: random(3, 8),
+                life: 25,
+                maxLife: 25,
+                type: "sparkle",
+              });
+            }
+
+            // Add bounce text effect - bigger and more noticeable
+            particles.push({
+              x: player.x,
+              y: player.y - 25,
+              vx: 0,
+              vy: -2,
+              color: color(255, 220, 0),
+              size: 2,
+              life: 40,
+              maxLife: 40,
+              type: "text",
+              text: "BOING!",
+              textSize: 16,
+            });
+            break;
+
+          case "vertical":
+            // Store current position for next frame's velocity calculation
+            if (p.prevY === undefined) {
+              p.prevY = p.y;
+            }
+            break;
+            
+          case "moving":
+            // Store current position for next frame's velocity calculation
+            if (p.prevX === undefined) {
+              p.prevX = p.x;
+            }
+            break;
+        }
+        
+        // Common landing behavior
+        if (p.type !== "bouncy") {
+          player.velocityY = 0;
+        }
+        
+        player.isOnGround = true;
+        coyoteTimer = 6;
+      } else {
+        // Hitting platform from below or side
+        if (player.velocityY < 0) player.velocityY = 0;
+        player.y = p.y + p.h + player.height / 2;
       }
+    }
+  });
+  
+  // Apply platform movement - this is the key to fixing the issues
+  // We do this AFTER regular physics to ensure player stays attached
+  if (player.isOnGround && player.platformBelow) {
+    const p = player.platformBelow;
+    
+    // Handle horizontal movement for all platforms
+    if (p.type === "moving" || (p.type === "vertical" && p.horizontalMovement)) {
+      if (p.prevX !== undefined) {
+        const platformDeltaX = p.x - p.prevX;
+        // Apply platform's horizontal movement directly to player position
+        player.x += platformDeltaX;
+      }
+      p.prevX = p.x;
+    }
+    
+    // Handle vertical movement for vertical platforms
+    if (p.type === "vertical") {
+      if (p.prevY !== undefined) {
+        const platformDeltaY = p.y - p.prevY;
+        // If platform is moving down, adjust player position
+        // This keeps the player "stuck" to the platform
+        if (platformDeltaY > 0) {
+          player.y += platformDeltaY;
+        } else if (platformDeltaY < 0) {
+          // When platform moves up, give it a slight "boost" effect
+          player.velocityY = min(platformDeltaY * 1.2, -0.1);
+        }
+      }
+      p.prevY = p.y;
+    }
+  }
+  
+  // Keep player within level bounds
+  player.x = constrain(player.x, player.width / 2, levelWidth - player.width / 2);
+}
 
       function updatePlayerAnimationState() {
         let set = player.animation.currentSet;
