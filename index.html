@@ -296,9 +296,8 @@
         normal: { start: 0, end: 0.01 }, // First 1% - only normal platforms
         bouncy: { start: 0.01, end: 0.05 }, // 1-5% - introduce bouncy
         moving: { start: 0.05, end: 0.1 }, // 5-10% - introduce moving
-        vertical: { start: 0.1, end: 0.15 }, // 10-15% - introduce vertical moving (replacing vanishing)
-        crumbling: { start: 0.2, end: 0.25 }, // 20-25% - introduce crumbling
-        mixed: { start: 0.25, end: 1.0 }, // Final 75% - mix everything
+        crumbling: { start: 0.15, end: 0.2 }, // 15-20% - introduce crumbling (adjusted position)
+        mixed: { start: 0.2, end: 1.0 }, // Final 80% - mix everything (expanded)
       };
 
       const brightPalettes = {
@@ -376,7 +375,6 @@
       // Help system for platform types
       let helpTexts = {
         crumbling: { shown: false, text: "NEW! Crumbling platforms fall after you step on them!" },
-        vertical: { shown: false, text: "NEW! These purple platforms move up and down!" }, // New help text
         moving: { shown: false, text: "NEW! These blue platforms move left and right!" },
         bouncy: { shown: false, text: "NEW! Yellow platforms give you an extra boost!" },
       };
@@ -384,7 +382,6 @@
       // Track if each platform type has had a tutorial platform
       let tutorialShown = {
         crumbling: false,
-        vertical: false,  // Changed from vanishing to vertical
         moving: false,
         bouncy: false,
       };
@@ -615,7 +612,6 @@
           const availableTypes = ["normal"]; // Always include normal platforms
           if (levelProgress >= INTRO_ZONES.bouncy.start) availableTypes.push("bouncy");
           if (levelProgress >= INTRO_ZONES.moving.start) availableTypes.push("moving");
-          if (levelProgress >= INTRO_ZONES.vertical.start) availableTypes.push("vertical"); // Changed from vanishing
           if (levelProgress >= INTRO_ZONES.crumbling.start) availableTypes.push("crumbling");
 
           // Each zone specifically introduces and features one platform type
@@ -639,8 +635,8 @@
               tutorialShown.bouncy = true;
               platformIsTutorial = true;
             }
-          } else if (levelProgress < INTRO_ZONES.vertical.start) {
-            // Moving platforms zone (5%-10%)
+          } else if (levelProgress < INTRO_ZONES.crumbling.start) {
+            // Moving platforms zone (5%-15%)
             const typeRoll = random();
 
             if (typeRoll < 0.4) {
@@ -657,37 +653,15 @@
               tutorialShown.moving = true;
               platformIsTutorial = true;
             }
-          } else if (levelProgress < INTRO_ZONES.crumbling.start) {
-            // Vertical moving platforms zone (10%-15%)
-            const typeRoll = random();
-
-            if (typeRoll < 0.35) {
-              platformType = "vertical";
-            } else if (typeRoll < 0.55) {
-              platformType = "moving";
-            } else if (typeRoll < 0.7) {
-              platformType = "bouncy";
-            } else {
-              platformType = "normal";
-            }
-
-            // Force tutorial platform at the beginning of the vertical zone
-            if (!tutorialShown.vertical && levelProgress < INTRO_ZONES.vertical.start + 0.02) {
-              platformType = "vertical";
-              tutorialShown.vertical = true;
-              platformIsTutorial = true;
-            }
           } else if (levelProgress < INTRO_ZONES.mixed.start) {
-            // Crumbling platforms zone (70%-90%)
+            // Crumbling platforms zone (15%-20%)
             const typeRoll = random();
 
             if (typeRoll < 0.3) {
               platformType = "crumbling";
             } else if (typeRoll < 0.5) {
-              platformType = "vertical";
-            } else if (typeRoll < 0.7) {
               platformType = "moving";
-            } else if (typeRoll < 0.85) {
+            } else if (typeRoll < 0.75) {
               platformType = "bouncy";
             } else {
               platformType = "normal";
@@ -713,7 +687,7 @@
               platformType = "normal";
             } else {
               // Select randomly from all special platform types
-              const specialTypes = ["bouncy", "moving", "vertical", "crumbling"];
+              const specialTypes = ["bouncy", "moving", "crumbling"];
               platformType = specialTypes[Math.floor(random() * specialTypes.length)];
             }
 
@@ -759,52 +733,8 @@
               }
               break;
 
-            case "vertical":
-              platform.startX = xPos;
-              platform.startY = newY;
-
-              if (platformIsTutorial) {
-                // Tutorial vertical platforms move slower and less distance
-                platform.amplitude = 50;
-                platform.speed = 0.015;
-                platform.horizontalMovement = false;
-              } else {
-                // Increase movement range and speed as game progresses
-                const baseAmplitude = 40;
-                const maxAmplitude = 100;
-                platform.amplitude = lerp(baseAmplitude, maxAmplitude, difficultyFactor);
-
-                const baseSpeed = 0.01;
-                const maxSpeed = 0.03;
-                platform.speed = lerp(baseSpeed, maxSpeed, difficultyFactor);
-
-                // Add horizontal movement to later zone platforms for more challenge
-                if (difficultyFactor > 0.6 && random() < 0.4) {
-                  platform.horizontalMovement = true;
-                  platform.horizontalPhase = random(TWO_PI);
-                  platform.horizontalSpeed = platform.speed * random(0.6, 1.0);
-
-                  // Horizontal movement amplitude is smaller than vertical
-                  const minHorizAmplitude = 15;
-                  const maxHorizAmplitude = 30;
-                  platform.horizontalAmplitude = lerp(minHorizAmplitude, maxHorizAmplitude, (difficultyFactor - 0.6) / 0.4);
-
-                  // Use a slightly different color for combined movement platforms
-                  platform.color = color(180, 120, 230); // Purplish
-                } else {
-                  platform.horizontalMovement = false;
-                  platform.color = color(200, 100, 255); // Standard purple
-                }
-              }
-
-              platform.phase = random(TWO_PI);
-
-              // Set special color for tutorial platform
-              if (platformIsTutorial) {
-                platform.color = color(220, 150, 255); // Brighter purple
-                platform.horizontalMovement = false;
-              }
-              break;
+            // Vertical platform type has been removed
+            
 
             case "moving":
               platform.startX = xPos;
@@ -1008,7 +938,6 @@
         // Display current zone
         let currentZone = "Normal";
         if (levelProgress >= INTRO_ZONES.crumbling.start) currentZone = "Crumbling";
-        else if (levelProgress >= INTRO_ZONES.vertical.start) currentZone = "Vertical";
         else if (levelProgress >= INTRO_ZONES.moving.start) currentZone = "Moving";
         else if (levelProgress >= INTRO_ZONES.bouncy.start) currentZone = "Bouncy";
         text(`Current zone: ${currentZone}`, 20, 60);
@@ -1358,7 +1287,7 @@
                   size: random(1.5, 3) * difficultyIntensity,
                   life: 15 * difficultyIntensity,
                   maxLife: 15 * difficultyIntensity,
-                  type: p.type === "vertical" ? "sparkle" : "default",
+                  type: "default",
                 });
               } else {
                 // Early zones: Subtle particles
@@ -1587,29 +1516,7 @@
                 }
               }
 
-              // Draw platform with visual indicators
-              fill(p.color);
-              stroke(0, 0, 0, 30);
-              strokeWeight(2);
-
-              // Add indication of movement with special pattern
-              if (p.horizontalMovement) {
-                // Create a gradient pattern to indicate horizontal movement
-                const patternWidth = 4;
-                for (let i = 0; i < p.w; i += patternWidth * 2) {
-                  fill(color(180, 120, 230));
-                  rect(p.x + i, p.y, patternWidth, p.h);
-                }
-              } else {
-                // Create a gradient pattern to indicate vertical movement
-                const patternHeight = 4;
-                for (let i = 0; i < p.h; i += patternHeight * 2) {
-                  fill(color(220, 150, 255));
-                  rect(p.x, p.y + i, p.w, patternHeight);
-                }
-              }
-
-              rect(p.x, p.y, p.w, p.h);
+              // This code is now removed as part of the vertical platform removal
               break;
 
             case "moving":
@@ -2225,7 +2132,7 @@
   platforms.forEach((p) => {
     if (isColliding(player, p)) {
       // Don't resolve horizontal collision for moving platforms when standing on top
-      if ((p.type === "moving" || p.type === "vertical") && 
+      if (p.type === "moving" && 
           player.isOnGround && 
           player.y <= p.y + 1) {
         // We'll handle this below with platform movement
@@ -2378,12 +2285,7 @@
             });
             break;
 
-          case "vertical":
-            // Store current position for next frame's velocity calculation
-            if (p.prevY === undefined) {
-              p.prevY = p.y;
-            }
-            break;
+          // Vertical platform type has been removed
             
           case "moving":
             // Store current position for next frame's velocity calculation
@@ -2413,8 +2315,8 @@
   if (player.isOnGround && player.platformBelow) {
     const p = player.platformBelow;
     
-    // Handle horizontal movement for all platforms
-    if (p.type === "moving" || (p.type === "vertical" && p.horizontalMovement)) {
+    // Handle horizontal movement for moving platforms
+    if (p.type === "moving") {
       if (p.prevX !== undefined) {
         const platformDeltaX = p.x - p.prevX;
         // Apply platform's horizontal movement directly to player position
@@ -2423,21 +2325,7 @@
       p.prevX = p.x;
     }
     
-    // Handle vertical movement for vertical platforms
-    if (p.type === "vertical") {
-      if (p.prevY !== undefined) {
-        const platformDeltaY = p.y - p.prevY;
-        // If platform is moving down, adjust player position
-        // This keeps the player "stuck" to the platform
-        if (platformDeltaY > 0) {
-          player.y += platformDeltaY;
-        } else if (platformDeltaY < 0) {
-          // When platform moves up, give it a slight "boost" effect
-          player.velocityY = min(platformDeltaY * 1.2, -0.1);
-        }
-      }
-      p.prevY = p.y;
-    }
+    // Vertical platforms have been removed from the game
   }
   
   // Keep player within level bounds
@@ -2580,7 +2468,6 @@
         gradient.addColorStop(0, "rgb(150, 255, 150)"); // Green for easy beginning
         gradient.addColorStop(INTRO_ZONES.bouncy.start, "rgb(220, 255, 100)"); // Yellow-green for bouncy
         gradient.addColorStop(INTRO_ZONES.moving.start, "rgb(100, 200, 255)"); // Blue for moving
-        gradient.addColorStop(INTRO_ZONES.vertical.start, "rgb(200, 180, 255)"); // Purple for vertical
         gradient.addColorStop(INTRO_ZONES.crumbling.start, "rgb(255, 150, 100)"); // Orange for crumbling
         gradient.addColorStop(INTRO_ZONES.mixed.start, "rgb(255, 80, 80)"); // Red for final zone
 
@@ -2607,9 +2494,6 @@
                 break;
               case "moving":
                 fill(80, 180, 255);
-                break;
-              case "vertical":
-                fill(200, 100, 255);
                 break;
               case "crumbling":
                 fill(220, 170, 120);
@@ -2647,7 +2531,7 @@
         noStroke();
         textSize(10);
         textAlign(CENTER, CENTER);          // Draw platform type indicators
-          const platformTypes = ["normal", "bouncy", "moving", "vertical", "crumbling"];
+          const platformTypes = ["normal", "bouncy", "moving", "crumbling"];
         platformTypes.forEach((type, i) => {
           const iconX = iconStartX + i * iconSpacing * 2;
           const iconY = 65;
@@ -2658,12 +2542,11 @@
             (levelSection === 0 && (type === "normal" || type === "bouncy")) ||
             (levelSection === 1 && (type === "normal" || type === "bouncy" || type === "moving")) ||
             (levelSection === 2 &&
-              (type === "normal" || type === "bouncy" || type === "moving" || type === "vertical")) ||
+              (type === "normal" || type === "bouncy" || type === "moving" || type === "crumbling")) ||
             (levelSection === 3 &&
               (type === "normal" ||
                 type === "bouncy" ||
                 type === "moving" ||
-                type === "vertical" ||
                 type === "crumbling")) ||
             levelSection === 4; // All platforms are common in the final section
 
@@ -2783,15 +2666,9 @@
         fill("#FFFFFF");
         text("Moving platforms - slide left & right", platformInfoX + 40, height / 2 + 25);
 
-        // Vertical moving platforms
-        fill(200, 100, 255);
-        rect(platformInfoX, height / 2 + 45, 30, 10);
-        fill("#FFFFFF");
-        text("Vertical platforms - move up & down", platformInfoX + 40, height / 2 + 50);
-
         // Crumbling platforms
         fill(200, 150, 100);
-        rect(platformInfoX, height / 2 + 70, 30, 10);
+        rect(platformInfoX, height / 2 + 45, 30, 10);
         // Draw cracks
         stroke(100, 60, 40);
         strokeWeight(1);
@@ -2892,11 +2769,11 @@
           case 2: // Moving platforms zone
             targetX = LEVEL_LENGTH * (INTRO_ZONES.moving.start + 0.01);
             break;
-          case 3: // Vertical platforms zone
-            targetX = LEVEL_LENGTH * (INTRO_ZONES.vertical.start + 0.01);
-            break;
-          case 4: // Crumbling platforms zone
+          case 3: // Crumbling platforms zone
             targetX = LEVEL_LENGTH * (INTRO_ZONES.crumbling.start + 0.01);
+            break;
+          case 4: // Mixed zone
+            targetX = LEVEL_LENGTH * (INTRO_ZONES.mixed.start + 0.01);
             break;
         }
         
