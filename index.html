@@ -327,6 +327,10 @@
       const TOTAL_THING_ROWS = 4;
       const TOTAL_THING_FRAMES = THING_FRAMES_PER_ROW * TOTAL_THING_ROWS;
 
+      // Particle system optimization
+      const MAX_PARTICLES = 200; // Maximum particles allowed at once
+      const PARTICLE_CULLING_DISTANCE = 1000; // Remove particles far from view
+
       // animation constants
       const FRAME_WIDTH = 48,
         FRAME_HEIGHT = 48;
@@ -921,36 +925,55 @@
         const avgFps = frameRateHistory.length > 0 
           ? frameRateHistory.reduce((a, b) => a + b, 0) / frameRateHistory.length 
           : frameRate();
+        
+        // Check if low performance mode is active
+        const lowPerformanceMode = avgFps < 40;
           
         // Setup for debug text
         push();
         fill(0, 0, 0, 180);
-        rect(10, 10, 200, 150);
-        fill(255, 255, 0);
+        rect(10, 10, 200, 170); // Made taller for additional info
+        
+        // FPS display color based on performance
+        if (lowPerformanceMode) {
+          fill(255, 100, 100); // Red for low performance
+        } else {
+          fill(100, 255, 100); // Green for good performance
+        }
+        
         textAlign(LEFT, TOP);
         textSize(14);
         
         // Display FPS
         text(`FPS: ${avgFps.toFixed(1)}`, 20, 20);
         
+        // Performance mode indicator
+        if (lowPerformanceMode) {
+          text("LOW PERFORMANCE MODE ACTIVE", 20, 40);
+        } else {
+          text("Performance: GOOD", 20, 40);
+        }
+        
+        fill(255, 255, 0); // Yellow for other debug info
+        
         // Display current position in level
         const levelProgress = player.x / LEVEL_LENGTH;
-        text(`Level progress: ${(levelProgress * 100).toFixed(2)}%`, 20, 40);
+        text(`Level progress: ${(levelProgress * 100).toFixed(2)}%`, 20, 60);
         
         // Display current zone
         let currentZone = "Normal";
         if (levelProgress >= INTRO_ZONES.crumbling.start) currentZone = "Crumbling";
         else if (levelProgress >= INTRO_ZONES.moving.start) currentZone = "Moving";
         else if (levelProgress >= INTRO_ZONES.bouncy.start) currentZone = "Bouncy";
-        text(`Current zone: ${currentZone}`, 20, 60);
+        text(`Current zone: ${currentZone}`, 20, 80);
         
         // Player position
-        text(`Player pos: ${Math.round(player.x)}, ${Math.round(player.y)}`, 20, 80);
+        text(`Player pos: ${Math.round(player.x)}, ${Math.round(player.y)}`, 20, 100);
         
         // Controls help
-        text("Debug Controls:", 20, 100);
-        text("D: Toggle debug mode", 20, 120);
-        text("1-5: Teleport to zones", 20, 140);
+        text("Debug Controls:", 20, 120);
+        text("D: Toggle debug mode", 20, 140);
+        text("1-5: Teleport to zones", 20, 160);
         
         pop();
         
@@ -1050,12 +1073,31 @@
 }
 
       function updateAndDrawParticles() {
+        // Enforce particle limit before processing
+        if (particles.length > MAX_PARTICLES) {
+          // Remove oldest particles when over limit
+          particles.splice(0, particles.length - MAX_PARTICLES);
+        }
+        
+        // Get current performance level
+        const currentFPS = frameRate();
+        const lowPerformanceMode = currentFPS < 40;
+        
         push();
         translate(-cameraX, -cameraY);
         noStroke();
 
         for (let i = particles.length - 1; i >= 0; i--) {
           const p = particles[i];
+          
+          // Cull distant particles that aren't visible
+          if (p.x < cameraX - PARTICLE_CULLING_DISTANCE || 
+              p.x > cameraX + width + PARTICLE_CULLING_DISTANCE || 
+              p.y < cameraY - PARTICLE_CULLING_DISTANCE || 
+              p.y > cameraY + height + PARTICLE_CULLING_DISTANCE) {
+            particles.splice(i, 1);
+            continue;
+          }
 
           // Update particle position
           p.x += p.vx;
@@ -1103,20 +1145,24 @@
             rect(0, 0, p.size, p.size);
             pop();
           } else if (p.type === "sparkle") {
-            // Draw sparkle with glow effect
-            drawingContext.shadowBlur = p.size;
-            drawingContext.shadowColor = color(255, 255, 200, alpha);
+            // Reduce expensive shadow effects in low performance mode
+            if (!lowPerformanceMode) {
+              drawingContext.shadowBlur = p.size;
+              drawingContext.shadowColor = color(255, 255, 200, alpha);
+            }
             fill(255, 255, 200, alpha);
             circle(p.x, p.y, p.size);
-            drawingContext.shadowBlur = 0;
+            if (!lowPerformanceMode) {
+              drawingContext.shadowBlur = 0;
+            }
           } else {
             // Draw standard circular particle
             fill(red(p.color), green(p.color), blue(p.color), alpha);
             circle(p.x, p.y, p.size);
           }
 
-          // Draw text if particle has text property
-          if (p.text) {
+          // Draw text if particle has text property and not in low performance mode
+          if (p.text && (!lowPerformanceMode || p.type === "text")) {
             fill(255, alpha);
             textAlign(CENTER, CENTER);
             textSize(p.textSize || 10);
@@ -1183,6 +1229,27 @@
       // Function to draw vignette effect - improved version
       function drawVignette(intensity) {
         if (intensity <= 0) return;
+
+        // Get current performance level
+        const currentFPS = frameRate();
+        const lowPerformanceMode = currentFPS < 30;
+
+        // Use simplified effect when performance is low
+        if (lowPerformanceMode) {
+          push();
+          noStroke();
+          // Simple rectangular vignette with no gradients
+          fill(0, 0, 0, intensity * 120);
+          rect(0, 0, width, height);
+          
+          // Simple red overlay for danger state
+          if (intensity > 0.5) {
+            fill(255, 0, 0, intensity * 30);
+            rect(0, 0, width, height);
+          }
+          pop();
+          return;
+        }
 
         push();
         // Create a smoother vignette using a custom shader approach
@@ -2780,7 +2847,7 @@
           }
           
           // Debug mode toggle (D key)
-          if (keyCode === 192) { // 'D' key
+          if (keyCode === 68) { // 'D' key (keyCode 68)
             debugMode = !debugMode;
             console.log("Debug mode: " + (debugMode ? "ON" : "OFF"));
           }
