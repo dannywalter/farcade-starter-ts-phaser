@@ -750,7 +750,6 @@
                 // Tutorial moving platforms move slower and less distance
                 platform.amplitude = 70;
                 platform.speed = 0.015;
-                platform.verticalMovement = false;
               } else {
                 // Increase movement range and speed as game progresses
                 const baseAmplitude = 50;
@@ -761,31 +760,15 @@
                 const maxSpeed = 0.04;
                 platform.speed = lerp(baseSpeed, maxSpeed, difficultyFactor);
 
-                // Add vertical movement to later zone platforms for more challenge
-                if (difficultyFactor > 0.6 && random() < 0.6) {
-                  platform.verticalMovement = true;
-                  platform.verticalPhase = random(TWO_PI);
-                  platform.verticalSpeed = platform.speed * random(0.6, 1.0);
-
-                  // Vertical movement amplitude increases with difficulty
-                  const minVertAmplitude = 20;
-                  const maxVertAmplitude = 40;
-                  platform.verticalAmplitude = lerp(minVertAmplitude, maxVertAmplitude, (difficultyFactor - 0.6) / 0.4);
-
-                  // Use a slightly different color for vertical-movement platforms
-                  platform.color = color(100, 150, 230); // Purplish blue
-                } else {
-                  platform.verticalMovement = false;
-                  platform.color = color(80, 180, 255); // Standard blue
-                }
+                // All moving platforms use the standard blue color
+                platform.color = color(80, 180, 255); // Standard blue
               }
 
               platform.phase = random(TWO_PI);
 
               // Set special color for tutorial platform
               if (platformIsTutorial) {
-                platform.color = color(100, 200, 255); // Brighter blue
-                platform.verticalMovement = false;
+                platform.color = color(100, 200, 255); // Brighter blue for tutorial
               }
               break;
 
@@ -1540,76 +1523,7 @@
               }
               break;
 
-            case "vertical":
-              // Calculate vertical position based on sine wave
-              const vertOffset = sin(frameCount * p.speed + p.phase) * p.amplitude;
-              p.y = p.startY + vertOffset;
-
-              // Handle horizontal movement if enabled
-              if (p.horizontalMovement) {
-                const horizOffset = sin(frameCount * p.horizontalSpeed + p.horizontalPhase) * p.horizontalAmplitude;
-                p.x = p.startX + horizOffset;
-
-                // Add horizontal trail effect
-                if (frameCount % 10 === 0 && abs(horizOffset) > p.horizontalAmplitude * 0.6) {
-                  const trailDirX = horizOffset > 0 ? -1 : 1;
-
-                  // Add horizontal trail particles
-                  for (let i = 0; i < 2; i++) {
-                    particles.push({
-                      x: p.x + (trailDirX < 0 ? p.w : 0),
-                      y: p.y + random(p.h),
-                      vx: trailDirX * random(0.5, 1),
-                      vy: random(-0.3, 0.3),
-                      color: color(180, 120, 230, 100),
-                      size: random(2, 5),
-                      life: 15,
-                      maxLife: 15,
-                      type: "sparkle",
-                    });
-                  }
-                }
-              }
-
-              // Add vertical trail effect
-              if (frameCount % 10 === 0 && abs(vertOffset) > p.amplitude * 0.6) {
-                const trailDirY = vertOffset > 0 ? -1 : 1;
-
-                // Add vertical trail particles
-                for (let i = 0; i < 2; i++) {
-                  particles.push({
-                    x: p.x + random(p.w),
-                    y: p.y + (trailDirY < 0 ? p.h : 0),
-                    vx: random(-0.3, 0.3),
-                    vy: trailDirY * random(0.5, 1),
-                    color: color(200, 150, 255, 100),
-                    size: random(2, 5),
-                    life: 15,
-                    maxLife: 15,
-                    type: "sparkle",
-                  });
-                }
-
-                // Add vertical movement indicators
-                if (abs(vertOffset) > p.amplitude * 0.9 && random() < 0.2) {
-                  particles.push({
-                    x: p.x + p.w / 2,
-                    y: p.y + (trailDirY < 0 ? p.h + 15 : -15),
-                    vx: 0,
-                    vy: trailDirY * -0.5,
-                    color: color(220, 180, 255),
-                    size: 1,
-                    life: 20,
-                    maxLife: 20,
-                    type: "text",
-                    text: trailDirY < 0 ? "↓" : "↑",
-                    textSize: 12,
-                  });
-                }
-              }
-
-              // This code is now removed as part of the vertical platform removal
-              break;
+            // Vertical platform type has been completely removed
 
             case "moving":
               // Store previous position before updating
@@ -1623,86 +1537,10 @@
               const horizOffset = sin(frameCount * p.speed + p.phase) * p.amplitude;
               p.x = p.startX + horizOffset;
 
-              // Handle vertical movement if enabled
-              if (p.verticalMovement) {
-                const vertOffset = sin(frameCount * p.verticalSpeed + p.verticalPhase) * p.verticalAmplitude;
-                p.y = p.startY + vertOffset;
-
-                // Add vertical trail effect
-                if (frameCount % 10 === 0 && abs(vertOffset) > p.verticalAmplitude * 0.6) {
-                  const trailDirY = vertOffset > 0 ? -1 : 1;
-
-                  // Add vertical trail particles
-                  for (let i = 0; i < 2; i++) {
-                    particles.push({
-                      x: p.x + random(p.w),
-                      y: p.y + (trailDirY < 0 ? p.h : 0),
-                      vx: random(-0.3, 0.3),
-                      vy: trailDirY * random(0.5, 1),
-                      color: color(130, 180, 255, 100),
-                      size: random(2, 5),
-                      life: 15,
-                      maxLife: 15,
-                      type: "sparkle",
-                    });
-                  }
-
-                  // Add vertical movement indicators
-                  if (abs(vertOffset) > p.verticalAmplitude * 0.9 && random() < 0.2) {
-                    particles.push({
-                      x: p.x + p.w / 2,
-                      y: p.y + (trailDirY < 0 ? p.h + 15 : -15),
-                      vx: 0,
-                      vy: trailDirY * -0.5,
-                      color: color(150, 220, 255),
-                      size: 1,
-                      life: 20,
-                      maxLife: 20,
-                      type: "text",
-                      text: trailDirY < 0 ? "↓" : "↑",
-                      textSize: 12,
-                    });
-                  }
-                }
-
-                // Create 2D trail effect when both movements are at extremes
-                if (
-                  frameCount % 15 === 0 &&
-                  abs(horizOffset) > p.amplitude * 0.7 &&
-                  abs(vertOffset) > p.verticalAmplitude * 0.7
-                ) {
-                  // Add a special vortex-like particle effect at corners
-                  for (let i = 0; i < 3; i++) {
-                    const angle = random(TWO_PI);
-                    particles.push({
-                      x: p.x + (horizOffset > 0 ? p.w : 0),
-                      y: p.y + (vertOffset > 0 ? p.h : 0),
-                      vx: cos(angle) * random(0.5, 1),
-                      vy: sin(angle) * random(0.5, 1),
-                      color: color(150, 200, 255, 150),
-                      size: random(3, 6),
-                      life: 25,
-                      maxLife: 25,
-                      type: "sparkle",
-                    });
-                  }
-                }
-              }
-
               // Draw platform with trail effect
               fill(p.color);
               stroke(0, 0, 0, 30);
               strokeWeight(2);
-
-              // Add indication of vertical movement with special pattern
-              if (p.verticalMovement) {
-                // Create a gradient pattern to indicate vertical movement
-                const patternHeight = 4;
-                for (let i = 0; i < p.h; i += patternHeight * 2) {
-                  fill(color(100, 170, 240));
-                  rect(p.x, p.y + i, p.w, patternHeight);
-                }
-              }
 
               rect(p.x, p.y, p.w, p.h);
 
@@ -2679,12 +2517,7 @@
                 fill(255);
                 text("↔", iconX, iconY + 6); // Horizontal arrow
                 break;
-              case "vertical":
-                fill(200, 100, 255); // Purple color
-                rect(iconX, iconY, iconSize, iconSize / 3);
-                fill(255);
-                text("↕", iconX, iconY + 6); // Vertical arrow
-                break;
+              // Removed deprecated vertical platform case
               case "crumbling":
                 fill(200, 150, 100);
                 rect(iconX, iconY, iconSize, iconSize / 3);
