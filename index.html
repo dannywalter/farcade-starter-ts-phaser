@@ -584,6 +584,14 @@
           platformBelow: null, // Add tracking for the current platform the player is on
         };
 
+        // Reset the target camera position but don't immediately set the actual camera position
+  // This allows the camera to smoothly travel back to the start
+  initialCameraY = player.y - height / 2;
+  
+  // Don't immediately reset camera position, let it lerp in updateCamera()
+  // cameraY = initialCameraY;
+  // cameraX = 0;
+
         platforms = [
           {
             x: 0,
