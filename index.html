@@ -541,8 +541,9 @@
         }
 
         initializeGame();
-        initialCameraY = player.y - height / 2;
-        cameraY = initialCameraY;
+        // Position the player lower on the screen (show more ahead)
+  initialCameraY = player.y - (height * 0.7); // Changed from height/2
+  cameraY = initialCameraY;
         joystick.x = 80;
         joystick.y = height - 80;
         jumpBtn.x = width - 80;
@@ -586,7 +587,8 @@
 
         // Reset the target camera position but don't immediately set the actual camera position
   // This allows the camera to smoothly travel back to the start
-  initialCameraY = player.y - height / 2;
+  // Position the player at about 2/3 down the screen instead of center
+  initialCameraY = player.y - (height * 0.7); // Changed from height/2 to height*0.7
   
   // Don't immediately reset camera position, let it lerp in updateCamera()
   // cameraY = initialCameraY;
@@ -1031,33 +1033,48 @@
       }
 
       function updateCamera() {
-  // Show more horizontal space by moving camera back
-  const tx = player.x - width * 0.4; // Was 1/3, now 0.4 to show more space
-  cameraX = constrain(lerp(cameraX, tx, 0.1), 0, max(levelWidth - width, 0));
+  // Show more horizontal space by moving camera more gently
+  const tx = player.x - width * 0.35; 
+  cameraX = constrain(lerp(cameraX, tx, 0.05), 0, max(levelWidth - width, 0)); // Reduced from 0.1 to 0.05
   
-  // CHANGE: Make vertical camera movement less responsive to jumps
-  // Only follow player if they're falling and below a certain threshold relative to camera
-  const lookDownThreshold = height * 0.5; // Only move camera down when player is this far down the screen
-  const lookUpThreshold = height * 0.4;   // Only move camera up when player is this far up the screen
+  // Use more relaxed vertical thresholds to reduce camera movement
+  const lookDownThreshold = height * 0.6;  // Increased from 0.55 to 0.6
+  const lookUpThreshold = height * 0.3;    // Decreased from 0.35 to 0.3
   
   // Calculate the player's position on screen
   const playerScreenY = player.y - cameraY;
   
   // Determine target camera Y position with more relaxed rules
-  let targetY = cameraY;
+  let targetY = cameraY; // Default to keeping current position
   
-  // Only move camera down if player is falling and below the threshold
-  if (playerScreenY > lookDownThreshold && player.velocityY > 0) {
-    targetY = player.y - lookDownThreshold;
+  // Only move camera if player is significantly outside comfort zone
+  if (playerScreenY > lookDownThreshold && player.velocityY > 2) {
+    // Only look down when falling with some velocity and well below threshold
+    targetY = player.y - lookDownThreshold + (player.velocityY * 1.5); // Reduced from 3 to 1.5
   }
-  // Only move camera up if player is above the threshold
+  // Only move camera up if player is significantly above the threshold
   else if (playerScreenY < lookUpThreshold) {
     targetY = player.y - lookUpThreshold;
   }
   
-  // Apply smoother vertical camera movement with less aggressive lerping
-  const verticalLerpFactor = player.velocityY > 0 ? 0.05 : 0.02; // Even slower when moving up
-  cameraY = lerp(cameraY, targetY, verticalLerpFactor);
+  // Apply much slower vertical camera movement
+  const verticalLerpFactor = player.velocityY > 5 ? 0.04 : 0.01; // Reduced from 0.08/0.02 to 0.04/0.01
+  
+  // Add a deadzone where camera doesn't move at all for small changes
+  if (Math.abs(targetY - cameraY) > 5) {
+    cameraY = lerp(cameraY, targetY, verticalLerpFactor);
+  }
+  
+  // Add damping to smooth out any jerkiness
+  player.lastCameraY = player.lastCameraY || cameraY;
+  const cameraDelta = cameraY - player.lastCameraY;
+  
+  // If camera is moving too quickly, apply additional damping
+  if (Math.abs(cameraDelta) > 10) {
+    cameraY = player.lastCameraY + (cameraDelta * 0.7); // Dampen sudden large movements
+  }
+  
+  player.lastCameraY = cameraY;
   
   // Keep the camera from going higher than the initial position
   cameraY = min(cameraY, initialCameraY);
