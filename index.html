@@ -322,6 +322,8 @@
       // sprite‑sheet setup
       const SPRITE_SHEET_URL =
         "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/spritesheet_things_80-VYQyfGsuWRfn5VjS8uiyEkpRIo7PXu.png";
+      const GREY_SPRITE_SHEET_URL =
+        "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/spritesheet_things_80_grey-EL90MwmI8yNVOFHmv7p0srC7YMfWfD.png";
       const THING_FRAME_SIZE = 64;
       const THING_FRAMES_PER_ROW = 20;
       const TOTAL_THING_ROWS = 4;
@@ -363,9 +365,7 @@
         goal,
         levelWidth,
         gameState;
-      let player, nounSpriteSheet, noggleImg, thingSpriteSheet;
-      let loadedThingImgs = [],
-        loadedThingGrayImgs = [];
+      let player, nounSpriteSheet, noggleImg, thingSpriteSheet, thingSpriteSheetGrey;
       let coyoteTimer = 0,
         jumpBufferTimer = 0,
         tagTimer = TAG_TIMER_MAX,
@@ -393,7 +393,7 @@
       let titleBg;
       // Track loading progress
       let loadingProgress = 0;
-      let totalAssets = 5; // Total number of assets to load
+      let totalAssets = 6; // Total number of assets to load (including greyscale sprite sheet)
       let assetsLoaded = 0;
 
       // Function to update the loading progress UI
@@ -439,6 +439,7 @@
         );
 
         thingSpriteSheet = loadImage(SPRITE_SHEET_URL, () => updateLoadingProgress());
+        thingSpriteSheetGrey = loadImage(GREY_SPRITE_SHEET_URL, () => updateLoadingProgress());
 
         titleBg = loadImage(
           "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/u0NamAsZmpLH/nounifyTheWorldTitle_1-0Wbv9O9w8f1mM12NI9CssOfFIRXlKt.png",
@@ -484,61 +485,6 @@
         textAlign(CENTER, CENTER);
         imageMode(CENTER);
         colorMode(RGB, 255);
-
-        // Implement lazy loading for sprite frames to improve startup time
-        // Only process essential frames initially, then load the rest in the background
-        const INITIAL_FRAMES_TO_LOAD = 20; // Load just enough frames to start the game
-
-        // Process initial frames synchronously for immediate start
-        for (let i = 0; i < Math.min(INITIAL_FRAMES_TO_LOAD, TOTAL_THING_FRAMES); i++) {
-          processThingFrame(i);
-        }
-
-        // Set up a background process to load the rest of the frames gradually
-        if (TOTAL_THING_FRAMES > INITIAL_FRAMES_TO_LOAD) {
-          let currentFrame = INITIAL_FRAMES_TO_LOAD;
-
-          const processRemainingFrames = () => {
-            const startTime = performance.now();
-            const MAX_PROCESSING_TIME = 10; // Process frames for max 10ms per frame
-
-            while (currentFrame < TOTAL_THING_FRAMES && performance.now() - startTime < MAX_PROCESSING_TIME) {
-              processThingFrame(currentFrame);
-              currentFrame++;
-            }
-
-            if (currentFrame < TOTAL_THING_FRAMES) {
-              // If we still have frames to process, continue in the next frame
-              requestAnimationFrame(processRemainingFrames);
-            }
-          };
-
-          // Start background processing
-          setTimeout(processRemainingFrames, 500);
-        }
-
-        // Function to process a single thing frame
-        function processThingFrame(i) {
-          // Calculate row and column from index
-          const col = i % THING_FRAMES_PER_ROW;
-          const row = Math.floor(i / THING_FRAMES_PER_ROW);
-
-          // Get frame from correct position in sprite sheet
-          let frame = thingSpriteSheet.get(
-            col * THING_FRAME_SIZE,
-            row * THING_FRAME_SIZE,
-            THING_FRAME_SIZE,
-            THING_FRAME_SIZE,
-          );
-
-          loadedThingImgs[i] = frame;
-
-          // Generate grayscale copy
-          let g = createGraphics(THING_FRAME_SIZE, THING_FRAME_SIZE);
-          g.image(frame, 0, 0);
-          g.filter(GRAY);
-          loadedThingGrayImgs[i] = g.get();
-        }
 
         initializeGame();
         // Position the player lower on the screen (show more ahead)
@@ -838,15 +784,14 @@
             const ty = random(minY, maxY);
 
             // pick a random frame index
-            const idx = floor(random(loadedThingImgs.length));
+            const idx = floor(random(TOTAL_THING_FRAMES));
 
             return {
               x: tx,
               y: ty,
               size: THING_BASE_SIZE,
               phase: random(TWO_PI),
-              img: loadedThingImgs[idx],
-              gray: loadedThingGrayImgs[idx],
+              frameIndex: idx,
               collected: false,
             };
           });
@@ -1695,7 +1640,23 @@
         imageMode(CENTER);
         things.forEach((t) => {
           const bob = sin(frameCount * THING_BOB_SPEED + t.phase) * THING_BOB_AMPLITUDE;
-          image(t.collected ? t.img : t.gray, t.x, t.y + bob, t.size, t.size);
+          const sheet = t.collected ? thingSpriteSheet : thingSpriteSheetGrey;
+          const col = t.frameIndex % THING_FRAMES_PER_ROW;
+          const row = Math.floor(t.frameIndex / THING_FRAMES_PER_ROW);
+          
+          // In p5.js image(), source coordinates come after destination coordinates
+          // Format: image(img, dx, dy, dw, dh, sx, sy, sw, sh)
+          image(
+            sheet,
+            t.x, 
+            t.y + bob, 
+            t.size, 
+            t.size,
+            col * THING_FRAME_SIZE,
+            row * THING_FRAME_SIZE,
+            THING_FRAME_SIZE,
+            THING_FRAME_SIZE
+          );
         });
       }
 
