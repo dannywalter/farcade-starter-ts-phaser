@@ -1150,9 +1150,9 @@
       // New function to draw the tag countdown visuals
       function drawTagCountdown() {
         if (tagTimer <= TAG_TIMER_WARNING) {
-          // Draw vignette effect that grows as timer decreases
-          const vignetteIntensity = customMap(tagTimer, TAG_TIMER_WARNING, 0, 0, 0.8);
-          drawVignette(vignetteIntensity);
+          // Calculate desaturation intensity that grows as timer decreases
+          const desaturationIntensity = customMap(tagTimer, TAG_TIMER_WARNING, 0, 0, 1);
+          drawDesaturationEffect(desaturationIntensity);
 
           // Draw countdown timer for last 5 seconds
           const seconds = ceil(tagTimer / 60);
@@ -1165,13 +1165,6 @@
               text(seconds, width / 2, height / 3);
             }
           }
-
-          // Desaturate world as timer approaches zero
-          if (vignetteIntensity > 0.3) {
-            const desaturation = customMap(vignetteIntensity, 0.3, 0.8, 0, 255);
-            fill(0, 0, 0, desaturation * 0.5);
-            rect(0, 0, width, height);
-          }
         }
 
         // Always show timer at the top
@@ -1181,87 +1174,83 @@
         text(`Tag Timer: ${floor(tagTimer / 60)}`, width / 2, 40);
       }
 
-      // Function to draw vignette effect - improved version
-      function drawVignette(intensity) {
+      // Function to draw desaturation effect for countdown
+      function drawDesaturationEffect(intensity) {
         if (intensity <= 0) return;
 
         // Get current performance level
         const currentFPS = frameRate();
         const lowPerformanceMode = currentFPS < 30;
 
-        // Use simplified effect when performance is low
-        if (lowPerformanceMode) {
-          push();
-          noStroke();
-          // Simple rectangular vignette with no gradients
-          fill(0, 0, 0, intensity * 120);
-          rect(0, 0, width, height);
-
-          // Simple red overlay for danger state
-          if (intensity > 0.5) {
-            fill(255, 0, 0, intensity * 30);
-            rect(0, 0, width, height);
-          }
-          pop();
-          return;
-        }
-
-        push();
-        // Create a smoother vignette using a custom shader approach
-        const vignetteSize = max(width, height) * 1.1;
+        // Calculate dimensions for gradients (these were missing!)
         const minDim = min(width, height);
         const maxDim = max(width, height);
 
-        // Draw corners first (stronger effect)
+        push();
         noStroke();
-        for (let corner = 0; corner < 4; corner++) {
-          const x = corner % 2 === 0 ? 0 : width;
-          const y = corner < 2 ? 0 : height;
-
-          drawingContext.save();
-          drawingContext.globalAlpha = intensity * 0.8;
-
-          const gradient = drawingContext.createRadialGradient(x, y, 0, x, y, maxDim * 0.8);
-
-          gradient.addColorStop(0, "rgba(0, 0, 0, 0.7)");
-          gradient.addColorStop(0.6, "rgba(0, 0, 0, 0.2)");
-          gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-
-          drawingContext.fillStyle = gradient;
-          drawingContext.fillRect(0, 0, width, height);
-          drawingContext.restore();
+        
+        // Use simplified effect when performance is low
+        if (lowPerformanceMode) {
+          // Simple white overlay with transparency for desaturation
+          fill(255, 255, 255, intensity * 120);
+          rect(0, 0, width, height);
+          
+          // Add a slight blue tint to make it feel colder
+          fill(200, 220, 255, intensity * 40);
+          rect(0, 0, width, height);
+          
+          pop();
+          return;
         }
-
-        // Center vignette (for consistent edge darkening)
+        
+        // Draw a semi-transparent white overlay to desaturate
         drawingContext.save();
-        drawingContext.globalAlpha = intensity;
-
-        const gradient = drawingContext.createRadialGradient(
-          width / 2,
-          height / 2,
-          minDim * 0.1,
-          width / 2,
-          height / 2,
-          maxDim * 0.6,
-        );
-
-        gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
-        gradient.addColorStop(0.7, "rgba(0, 0, 0, " + intensity * 0.4 + ")");
-        gradient.addColorStop(1, "rgba(0, 0, 0, " + intensity * 0.7 + ")");
-
-        drawingContext.fillStyle = gradient;
-        drawingContext.fillRect(0, 0, width, height);
+        
+        // Create a uniform desaturation effect
+        const desatAmount = intensity * 0.7;
+        fill(255, 255, 255, desatAmount * 150);
+        rect(0, 0, width, height);
+        
+        // Add a subtle blue-gray tint to make it feel washed out
+        fill(210, 220, 240, desatAmount * 80);
+        rect(0, 0, width, height);
+        
         drawingContext.restore();
 
-        // Add red tint to indicate danger
-        if (intensity > 0.5) {
+        // Add subtle gradient effect for more emphasis at the edges
+        if (intensity > 0.3) {
           drawingContext.save();
-          drawingContext.globalAlpha = customMap(intensity, 0.5, 1, 0, 0.15);
-          drawingContext.fillStyle = "rgba(255, 0, 0, 0.3)";
+          
+          // Create a radial gradient that's stronger at the edges
+          const gradient = drawingContext.createRadialGradient(
+            width / 2,
+            height / 2,
+            minDim * 0.1,
+            width / 2,
+            height / 2,
+            maxDim * 0.7,
+          );
+
+          const edgeIntensity = intensity * 0.9;
+          gradient.addColorStop(0, "rgba(255, 255, 255, 0)");
+          gradient.addColorStop(0.6, "rgba(255, 255, 255, " + edgeIntensity * 0.2 + ")");
+          gradient.addColorStop(1, "rgba(240, 248, 255, " + edgeIntensity * 0.5 + ")"); // Slight blue tint at edges
+
+          drawingContext.fillStyle = gradient;
+          drawingContext.globalAlpha = intensity;
           drawingContext.fillRect(0, 0, width, height);
           drawingContext.restore();
+          
+          // Add slight red warning tint for urgency when timer is critical
+          if (intensity > 0.7) {
+            drawingContext.save();
+            drawingContext.globalAlpha = customMap(intensity, 0.7, 1, 0, 0.15);
+            drawingContext.fillStyle = "rgba(255, 0, 0, 0.15)";
+            drawingContext.fillRect(0, 0, width, height);
+            drawingContext.restore();
+          }
         }
-
+        
         pop();
       }
 
